@@ -10,7 +10,7 @@ public class Viaje {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long Id;
+    private Long id;
 
     @Column(name = "cantidadPasajeros")
     private int cantidadPasajeros;
@@ -24,13 +24,12 @@ public class Viaje {
     @Column(name = "destinoLat")
     private BigDecimal destinoLat;
 
-    @Column(name = "destioLng")
+    @Column(name = "destinoLng")
     private BigDecimal destinoLng;
 
     public enum EstadoViaje {
         SOLICITADO, BUSCANDO_CONDUCTOR,
         ACEPTADO, EN_CAMINO, EN_CURSO,
-        // NUEVOS: estados finales necesarios para el ciclo de vida completo del viaje
         FINALIZADO,  // conductor marcó el viaje como terminado → conductor vuelve al pool FIFO
         CANCELADO    // cliente o admin canceló el viaje
     }
@@ -45,7 +44,6 @@ public class Viaje {
     @JoinColumn(name = "conductor_id")
     private Usuario conductor;
 
-
     @ManyToOne
     @JoinColumn(name = "automovil_id")
     private Automovil automovil;
@@ -56,7 +54,7 @@ public class Viaje {
     @Column(name = "precioCalculado")
     private BigDecimal precioCalculado;
 
-    @Column(name = "FechaSolicitud")
+    @Column(name = "fechaSolicitud")
     private LocalDateTime fechaSolicitud;
 
     @Column(name = "fechaInicio")
@@ -74,7 +72,7 @@ public class Viaje {
                  Usuario cliente, Usuario conductor, Automovil automovil,
                  BigDecimal precio, BigDecimal precioCalculado, LocalDateTime fechaSolicitud,
                  LocalDateTime fechaInicio, LocalDateTime fechaFinalizacion) {
-        Id = id;
+        this.id = id;
         this.cantidadPasajeros = cantidadPasajeros;
         this.origenLat = origenLat;
         this.origenLng = origenLng;
@@ -92,11 +90,11 @@ public class Viaje {
     }
 
     public Long getId() {
-        return Id;
+        return id;
     }
 
     public void setId(Long id) {
-        Id = id;
+        this.id = id;
     }
 
     public int getCantidadPasajeros() {
@@ -215,7 +213,7 @@ public class Viaje {
     @Override
     public String toString() {
         return "Viaje{" +
-                "Id=" + Id +
+                "id=" + id +
                 ", cantidadPasajeros=" + cantidadPasajeros +
                 ", origenLat=" + origenLat +
                 ", origenLng=" + origenLng +

@@ -10,5 +10,8 @@ public interface NotificacionRepository extends JpaRepository<Notificacion, Long
 
     List<Notificacion> findByUsuarioIdOrderByFechaCreacionDesc(Long usuarioId);
 
-    List<Notificacion> findByUsuarioIdAndLeidaFalse(Long usuarioId);
+    // Notificaciones no leídas, ordenadas de la más reciente a la más antigua.
+    List<Notificacion> findByUsuarioIdAndLeidaFalseOrderByFechaCreacionDesc(Long usuarioId);
+
+    long countByUsuarioIdAndLeidaFalse(Long usuarioId);
 }

@@ -1,6 +1,8 @@
 package com.GAV.gav.Repository;
 
 import com.GAV.gav.Model.ViajeConductor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -32,4 +34,17 @@ public interface ViajeConductorRepository extends JpaRepository<ViajeConductor, 
         AND vc.fechaExpiracion < :ahora
     """)
     List<ViajeConductor> findSolicitudesExpiradas(@Param("ahora") LocalDateTime ahora);
+
+    // Historial paginado de solicitudes recibidas por un conductor, con filtro opcional por estado.
+    @Query("""
+        SELECT vc FROM ViajeConductor vc
+        WHERE vc.conductor.usuarioId = :conductorId
+        AND (:estado IS NULL OR vc.estado = :estado)
+        ORDER BY vc.fechaOferta DESC
+    """)
+    Page<ViajeConductor> findHistorialPorConductor(
+            @Param("conductorId") Long conductorId,
+            @Param("estado") ViajeConductor.EstadoSolicitud estado,
+            Pageable pageable
+    );
 }

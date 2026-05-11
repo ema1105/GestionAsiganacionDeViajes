@@ -11,12 +11,19 @@ import java.util.Optional;
 public interface TarifaRepository extends JpaRepository<Tarifa, Long> {
 
     /*
-    * validar tarifas activas o viegentes del momento
-    */
+     * Devuelve la primera tarifa activa cuyo rango fechaInicio..fechaFin contenga el momento actual.
+     * Las fechas son NULLABLE: una tarifa sin fechaInicio/fechaFin se considera siempre vigente.
+     */
     @Query("""
             SELECT t FROM Tarifa t
             WHERE t.activo = true
-            AND CURRENT_TIMESTAMP BETWEEN t.fechaInicio AND t.fechaFin
+            AND (t.fechaInicio IS NULL OR t.fechaInicio <= CURRENT_TIMESTAMP)
+            AND (t.fechaFin IS NULL OR t.fechaFin >= CURRENT_TIMESTAMP)
+            ORDER BY t.fechaInicio DESC
             """)
-    Optional<Tarifa>findByTarifaActiva();
+    java.util.List<Tarifa> findTarifasActivas();
+
+    default Optional<Tarifa> findByTarifaActiva() {
+        return findTarifasActivas().stream().findFirst();
+    }
 }

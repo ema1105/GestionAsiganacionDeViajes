@@ -21,7 +21,7 @@ public class Usuario {
     @Column(name = "fechaNacimiento", nullable = false)
     private Date fechaNacimiento;
 
-    @Column(name = "nombrUsuario", nullable = false)
+    @Column(name = "nombreUsuario", nullable = false)
     private String nombreUsuario;
 
     @Column(name = "contrasena", nullable = false)
@@ -30,9 +30,6 @@ public class Usuario {
     @Column(name = "telefono", nullable = false)
     private String telefono;
 
-
-    // CAMBIO: visibilidad cambiada de private a public
-    // Necesario para que RegisterClienteRequest y RegisterConductorRequest puedan exponerlo
     public enum TipoDocumento {
         CC, TI,
         PASAPORTE, CE,
@@ -47,6 +44,16 @@ public class Usuario {
 
     @Column(name = "correo", nullable = false)
     private String email;
+
+    // NUEVO: género del usuario. Nullable (no obligatorio en el registro,
+    // el conductor lo añade luego desde su perfil).
+    public enum Genero {
+        MASCULINO, FEMENINO, OTRO, PREFIERO_NO_DECIR
+    }
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "genero")
+    private Genero genero;
 
     @ManyToOne
     @JoinColumn(name = "rol_id")
@@ -158,6 +165,14 @@ public class Usuario {
 
     public void setRol(Rol rol) {
         this.rol = rol;
+    }
+
+    public Genero getGenero() {
+        return genero;
+    }
+
+    public void setGenero(Genero genero) {
+        this.genero = genero;
     }
 
     @Override

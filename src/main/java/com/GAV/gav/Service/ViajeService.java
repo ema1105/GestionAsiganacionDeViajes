@@ -11,16 +11,18 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 
 // Gestiona el ciclo de vida de los viajes y contiene la lógica central del algoritmo FIFO.
 //
 // FLUJO FIFO:
-//   1. Cliente solicita viaje → Viaje creado en estado SOLICITADO
+//   1. Cliente solicita viaje → Viaje creado en estado SOLICITADO con precio calculado
 //   2. Sistema busca conductores disponibles ordenados por fechaDisponibleDesde ASC (FIFO)
 //   3. Se filtra por capacidad del vehículo y se excluyen conductores que ya rechazaron/expiraron
-//   4. Se crea ViajeConductor(PENDIENTE) para el primer conductor de la cola
+//   4. Se crea ViajeConductor(PENDIENTE) para el primer conductor de la cola + Notificación
 //   5. Conductor tiene SEGUNDOS_EXPIRACION para responder
 //   6. Si no responde → scheduler marca como EXPIRADO → siguiente en cola FIFO
 //   7. Si acepta → viaje queda en estado ACEPTADO, conductor sale del pool
@@ -36,13 +38,19 @@ public class ViajeService {
     private final UsuarioRepository usuarioRepository;
     private final ConductorRepository conductorRepository;
     private final ViajeConductorRepository viajeConductorRepository;
+    private final TarifaRepository tarifaRepository;
+    private final NotificacionService notificacionService;
 
-    // El cliente solicita un viaje. Se crea el registro y se dispara la asignación FIFO inmediatamente.
+    // El cliente solicita un viaje. Se crea el registro, se calcula el precio
+    // y se dispara la asignación FIFO inmediatamente.
     @Transactional
     public ViajeResponse solicitarViaje(SolicitarViajeRequest request, Long clienteId) {
         Usuario cliente = usuarioRepository.findById(clienteId)
                 .orElseThrow(() -> new BusinessException(
                         "Cliente no encontrado: " + clienteId, HttpStatus.NOT_FOUND));
+
+        // Calcular precio con la tarifa activa actual
+        BigDecimal precio = calcularPrecio(request.getDistanciaKm(), request.getDuracionMin());
 
         Viaje viaje = new Viaje();
         viaje.setCliente(cliente);
@@ -53,12 +61,34 @@ public class ViajeService {
         viaje.setDestinoLng(request.getDestinoLng());
         viaje.setEstadoViaje(Viaje.EstadoViaje.SOLICITADO);
         viaje.setFechaSolicitud(LocalDateTime.now());
+        viaje.setPrecioCalculado(precio);
         Viaje viajeGuardado = viajeRepository.save(viaje);
 
         // Disparar la asignación FIFO en la misma transacción
         asignarPrimerConductorFIFO(viajeGuardado);
 
-        return mapToViajeResponse(viajeRepository.findById(viajeGuardado.getId()).orElse(viajeGuardado));
+        return mapToViajeResponse(
+                viajeRepository.findById(viajeGuardado.getId()).orElse(viajeGuardado));
+    }
+
+    // Cálculo de precio:
+    //   precio = (precioBase + precioPorKm * km + precioPorMinuto * min) * multiplicadorDinamico
+    // Si no hay tarifa activa configurada, falla con un 500 explícito.
+    private BigDecimal calcularPrecio(BigDecimal distanciaKm, int duracionMin) {
+        Tarifa tarifa = tarifaRepository.findByTarifaActiva()
+                .orElseThrow(() -> new BusinessException(
+                        "No hay una tarifa activa configurada. Contacte al administrador.",
+                        HttpStatus.INTERNAL_SERVER_ERROR));
+
+        BigDecimal porKm = tarifa.getPrecioPorKm().multiply(distanciaKm);
+        BigDecimal porMin = tarifa.getPrecioPorMinuto()
+                .multiply(BigDecimal.valueOf(duracionMin));
+        BigDecimal subtotal = tarifa.getPrecioBase().add(porKm).add(porMin);
+
+        BigDecimal multiplicador = tarifa.getMultiplicadorDinamico() != null
+                ? tarifa.getMultiplicadorDinamico() : BigDecimal.ONE;
+
+        return subtotal.multiply(multiplicador).setScale(2, RoundingMode.HALF_UP);
     }
 
     // Primera asignación: no hay conductores excluidos aún, solo filtrar por capacidad
@@ -101,7 +131,6 @@ public class ViajeService {
     }
 
     // Crea el registro ViajeConductor(PENDIENTE) y notifica al conductor.
-    // La notificación real (WebSocket) se conectará aquí cuando se integre el NotificacionService.
     private void crearSolicitudPendiente(Viaje viaje, Conductor conductor) {
         LocalDateTime ahora = LocalDateTime.now();
         ViajeConductor solicitud = new ViajeConductor(
@@ -113,8 +142,14 @@ public class ViajeService {
         );
         viajeConductorRepository.save(solicitud);
 
-        // TODO: emitir evento WebSocket al conductor para que vea la solicitud en su app
-        // webSocketService.notificarConductor(conductor.getUsuarioId(), viaje);
+        // Notificar al conductor que tiene una nueva solicitud por aceptar/rechazar.
+        notificacionService.crear(
+                conductor.getUsuario(),
+                viaje,
+                Notificacion.TipoNotificacion.NUEVA_SOLICITUD,
+                "Nueva solicitud de viaje #" + viaje.getId()
+                        + " — tienes " + SEGUNDOS_EXPIRACION + "s para responder."
+        );
     }
 
     // Scheduler que corre cada 10 segundos para detectar solicitudes que expiraron sin respuesta.
@@ -158,6 +193,67 @@ public class ViajeService {
         Viaje viaje = viajeRepository.findById(viajeId)
                 .orElseThrow(() -> new BusinessException(
                         "Viaje no encontrado: " + viajeId, HttpStatus.NOT_FOUND));
+        return mapToViajeResponse(viaje);
+    }
+
+    // Cancelación por parte del CLIENTE (antes de EN_CURSO).
+    // Si ya había un conductor asignado, este vuelve al pool FIFO y recibe notificación.
+    // Si había una solicitud PENDIENTE en cola, se marca como EXPIRADA para que no responda.
+    @Transactional
+    public ViajeResponse cancelarPorCliente(Long viajeId, Long clienteId, String motivo) {
+        Viaje viaje = viajeRepository.findById(viajeId)
+                .orElseThrow(() -> new BusinessException(
+                        "Viaje no encontrado: " + viajeId, HttpStatus.NOT_FOUND));
+
+        // Validar ownership: solo el cliente que solicitó el viaje puede cancelarlo
+        if (viaje.getCliente() == null || !viaje.getCliente().getId().equals(clienteId)) {
+            throw new BusinessException(
+                    "El cliente " + clienteId + " no es el solicitante de este viaje.",
+                    HttpStatus.FORBIDDEN);
+        }
+
+        if (viaje.getEstadoViaje() == Viaje.EstadoViaje.EN_CURSO
+                || viaje.getEstadoViaje() == Viaje.EstadoViaje.FINALIZADO
+                || viaje.getEstadoViaje() == Viaje.EstadoViaje.CANCELADO) {
+            throw new BusinessException(
+                    "No se puede cancelar un viaje en estado: " + viaje.getEstadoViaje(),
+                    HttpStatus.CONFLICT);
+        }
+
+        // Si había un conductor asignado (estados ACEPTADO o EN_CAMINO), regresarlo al pool FIFO
+        Usuario conductorUsuario = viaje.getConductor();
+        if (conductorUsuario != null) {
+            Conductor conductor = conductorRepository.findByUsuarioId(conductorUsuario.getId())
+                    .orElseThrow(() -> new BusinessException(
+                            "Conductor no encontrado: " + conductorUsuario.getId(),
+                            HttpStatus.NOT_FOUND));
+            conductor.setDisponibilidad(true);
+            conductor.setFechaDisponibleDesde(LocalDateTime.now());
+            conductorRepository.save(conductor);
+
+            // Notificar al conductor asignado que el cliente canceló
+            notificacionService.crear(
+                    conductorUsuario,
+                    viaje,
+                    Notificacion.TipoNotificacion.VIAJE_CANCELADO,
+                    "El cliente canceló el viaje #" + viaje.getId()
+                            + (motivo != null && !motivo.isBlank() ? " — Motivo: " + motivo : "")
+            );
+        }
+
+        // Si había una solicitud PENDIENTE en la cola FIFO, marcarla como EXPIRADA
+        // para evitar que el conductor reciba/acepte una solicitud sobre un viaje cancelado.
+        viajeConductorRepository.findByViajeIdAndEstado(
+                viajeId, ViajeConductor.EstadoSolicitud.PENDIENTE)
+                .ifPresent(solicitud -> {
+                    solicitud.setEstado(ViajeConductor.EstadoSolicitud.EXPIRADO);
+                    solicitud.setFechaRespuesta(LocalDateTime.now());
+                    viajeConductorRepository.save(solicitud);
+                });
+
+        viaje.setEstadoViaje(Viaje.EstadoViaje.CANCELADO);
+        viajeRepository.save(viaje);
+
         return mapToViajeResponse(viaje);
     }
 

@@ -22,8 +22,6 @@ public class Conductor {
     @Column(name = "licencia", unique = true, nullable = false)
     private String licencia;
 
-    // CAMBIO: visibilidad cambiada de private a public
-    // Necesario para que DTOs y Services puedan referenciar el enum directamente
     public enum TipoLicencia {
         A1, A2,
         B1, B2, B3,
@@ -45,6 +43,16 @@ public class Conductor {
     @Column(name = "fechaDisponibleDesde")
     private LocalDateTime fechaDisponibleDesde;
 
+    // soft-delete. Cuando el admin "deshabilita" un conductor (renuncia,
+    // baja del hotel) se pone en false. El registro y sus viajes históricos
+    // permanecen en BD para auditoría, pero:
+    //   - No aparece en listados de admin/cliente
+    //   - No entra al pool FIFO
+    //   - No puede iniciar sesión (UserDetailsServiceImpl lo marca disabled)
+    // Nullable para no romper registros preexistentes; el código trata NULL como true.
+    @Column(name = "activo")
+    private Boolean activo = true;
+
     public Conductor() {}
 
     public Conductor(Long usuarioId, Usuario usuario, Boolean disponibilidad, String licencia,
@@ -56,6 +64,7 @@ public class Conductor {
         this.tipoLicencia = tipoLicencia;
         this.automovil = automovil;
         this.fechaDisponibleDesde = fechaDisponibleDesde;
+        this.activo = true;
     }
 
     public Long getUsuarioId() { return usuarioId; }
@@ -76,10 +85,17 @@ public class Conductor {
     public Automovil getAutomovil() { return automovil; }
     public void setAutomovil(Automovil automovil) { this.automovil = automovil; }
 
-    // NUEVO getter/setter
     public LocalDateTime getFechaDisponibleDesde() { return fechaDisponibleDesde; }
     public void setFechaDisponibleDesde(LocalDateTime fechaDisponibleDesde) {
         this.fechaDisponibleDesde = fechaDisponibleDesde;
+    }
+
+    // NULL en BD se trata como activo (compatibilidad con registros pre-existentes).
+    public Boolean getActivo() { return activo; }
+    public void setActivo(Boolean activo) { this.activo = activo; }
+
+    public boolean isActivoEffective() {
+        return activo == null || Boolean.TRUE.equals(activo);
     }
 
     @Override
@@ -92,6 +108,7 @@ public class Conductor {
                 ", tipoLicencia=" + tipoLicencia +
                 ", automovil=" + automovil +
                 ", fechaDisponibleDesde=" + fechaDisponibleDesde +
+                ", activo=" + activo +
                 '}';
     }
 

@@ -18,7 +18,7 @@ public class Tarifa {
     private BigDecimal precioBase;
     private BigDecimal precioPorKm;
     private BigDecimal precioPorMinuto;
-    private BigDecimal multiplacdorDinamico;
+    private BigDecimal multiplicadorDinamico;
 
     private LocalDateTime fechaInicio;
     private LocalDateTime fechaFin;
@@ -29,13 +29,13 @@ public class Tarifa {
     }
 
     public Tarifa(Long id, BigDecimal precioBase, BigDecimal precioPorKm,
-                  BigDecimal precioPorMinuto, BigDecimal multiplacdorDinamico,
+                  BigDecimal precioPorMinuto, BigDecimal multiplicadorDinamico,
                   LocalDateTime fechaInicio, LocalDateTime fechaFin, Boolean activo) {
         Id = id;
         this.precioBase = precioBase;
         this.precioPorKm = precioPorKm;
         this.precioPorMinuto = precioPorMinuto;
-        this.multiplacdorDinamico = multiplacdorDinamico;
+        this.multiplicadorDinamico = multiplicadorDinamico;
         this.fechaInicio = fechaInicio;
         this.fechaFin = fechaFin;
         this.activo = activo;
@@ -73,12 +73,12 @@ public class Tarifa {
         this.precioPorMinuto = precioPorMinuto;
     }
 
-    public BigDecimal getMultiplacdorDinamico() {
-        return multiplacdorDinamico;
+    public BigDecimal getMultiplicadorDinamico() {
+        return multiplicadorDinamico;
     }
 
-    public void setMultiplacdorDinamico(BigDecimal multiplacdorDinamico) {
-        this.multiplacdorDinamico = multiplacdorDinamico;
+    public void setMultiplicadorDinamico(BigDecimal multiplicadorDinamico) {
+        this.multiplicadorDinamico = multiplicadorDinamico;
     }
 
     public LocalDateTime getFechaInicio() {
@@ -112,7 +112,7 @@ public class Tarifa {
                 ", precioBase=" + precioBase +
                 ", precioPorKm=" + precioPorKm +
                 ", precioPorMinuto=" + precioPorMinuto +
-                ", multiplacdorDinamico=" + multiplacdorDinamico +
+                ", multiplicadorDinamico=" + multiplicadorDinamico +
                 ", fechaInicio=" + fechaInicio +
                 ", fechaFin=" + fechaFin +
                 ", activo=" + activo +

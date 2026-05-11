@@ -11,21 +11,34 @@ public class Notificacion {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long Id;
+    private Long id;
 
     @ManyToOne
+    @JoinColumn(name = "usuario_id")
     private Usuario usuario;
 
     @ManyToOne
+    @JoinColumn(name = "viaje_id")
     private Viaje viaje;
+
+    // NUEVOS: VIAJE_ACEPTADO, VIAJE_EN_CURSO, VIAJE_CANCELADO para cubrir todo el ciclo de estados.
+    public enum TipoNotificacion {
+        // Notificación al CONDUCTOR cuando el FIFO le asigna una solicitud pendiente
+        NUEVA_SOLICITUD,
+        // Notificaciones al CLIENTE en cada cambio de estado del viaje
+        CONDUCTOR_ASIGNADO,
+        CONDUCTOR_EN_CAMINO,
+        VIAJE_ACEPTADO,
+        VIAJE_INICIADO,
+        VIAJE_EN_CURSO,
+        VIAJE_FINALIZADO,
+        VIAJE_CANCELADO,
+        // Notificación bidireccional cuando un usuario recibe una nueva calificación
+        NUEVA_CALIFICACION
+    }
 
     @Enumerated(EnumType.STRING)
     private TipoNotificacion tipoNotificacion;
-
-    private enum TipoNotificacion{
-        CONDUTOR_ASIGNADO, VIAJE_INICIADO,
-        VIAJE_FINALIZADO, CONDUCTOR_EN_CAMINO
-    }
 
     @Column(name = "mensaje")
     private String mensaje;
@@ -39,22 +52,23 @@ public class Notificacion {
     public Notificacion() {
     }
 
-    public Notificacion(Long id, Usuario usuario, Viaje viaje, TipoNotificacion tipoNotificacion, String mensaje, Boolean leida, LocalDateTime fechaCreaacion) {
-        Id = id;
+    public Notificacion(Long id, Usuario usuario, Viaje viaje, TipoNotificacion tipoNotificacion,
+                        String mensaje, Boolean leida, LocalDateTime fechaCreacion) {
+        this.id = id;
         this.usuario = usuario;
         this.viaje = viaje;
         this.tipoNotificacion = tipoNotificacion;
         this.mensaje = mensaje;
         this.leida = leida;
-        this.fechaCreacion = fechaCreaacion;
+        this.fechaCreacion = fechaCreacion;
     }
 
     public Long getId() {
-        return Id;
+        return id;
     }
 
     public void setId(Long id) {
-        Id = id;
+        this.id = id;
     }
 
     public Usuario getUsuario() {
@@ -109,7 +123,7 @@ public class Notificacion {
     @Override
     public String toString() {
         return "Notificacion{" +
-                "Id=" + Id +
+                "id=" + id +
                 ", usuario=" + usuario +
                 ", viaje=" + viaje +
                 ", tipoNotificacion=" + tipoNotificacion +

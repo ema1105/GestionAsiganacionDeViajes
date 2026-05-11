@@ -1,6 +1,7 @@
 package com.GAV.gav.Security;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -16,10 +17,19 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
+import java.util.List;
 
 // Configuración central de Spring Security.
 // La API es stateless (JWT), por eso la sesión HTTP está deshabilitada (STATELESS).
 // Los endpoints se protegen por rol; los controllers los usarán una vez integrados.
+//
+// CORS: configurado para permitir el frontend React (puertos típicos de Vite/CRA).
+// Los orígenes permitidos se leen de la propiedad `cors.allowed-origins`.
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -29,9 +39,15 @@ public class SecurityConfig {
     private final JwtAuthFilter jwtAuthFilter;
     private final UserDetailsServiceImpl userDetailsService;
 
+    // Lista de orígenes permitidos para CORS, configurable por property.
+    // Default: ambos puertos típicos de desarrollo de React (Vite y CRA).
+    @Value("${cors.allowed-origins:http://localhost:5173,http://localhost:3000}")
+    private String[] allowedOrigins;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -46,10 +62,14 @@ public class SecurityConfig {
                 ).permitAll()
                 // Solo el admin puede registrar conductores y gestionar la plataforma
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                // Solo conductores activos pueden responder solicitudes de viaje
+                // Recepcionista: check-in de huéspedes y solicitud de viajes en su nombre
+                .requestMatchers("/api/recepcionista/**").hasRole("RECEPCIONISTA")
+                // Operaciones del cliente (solicitar viaje, cancelar, ver sus viajes)
+                .requestMatchers("/api/cliente/**").hasRole("CLIENTE")
+                // Operaciones del conductor (responder solicitudes, gestionar viaje en curso)
                 .requestMatchers("/api/conductor/**").hasRole("CONDUCTOR")
-                // Solo clientes pueden solicitar viajes
-                .requestMatchers("/api/viaje/**").hasAnyRole("CLIENTE", "ADMIN")
+                // Notificaciones: cualquier usuario autenticado consulta las suyas
+                .requestMatchers("/api/notificaciones/**").authenticated()
                 // Cualquier otro endpoint requiere autenticación
                 .anyRequest().authenticated()
             )
@@ -59,11 +79,30 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // Proveedor de autenticación que usa UserDetailsService + BCrypt para validar credenciales
+    // CORS: configuración aplicada globalmente.
+    // Permite los métodos típicos REST y todos los headers (incluido Authorization para JWT).
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(Arrays.asList(allowedOrigins));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setExposedHeaders(List.of("Authorization"));
+        // allowCredentials=true requiere orígenes específicos (no "*"), por eso usamos la lista.
+        config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
+    }
+
+    // Proveedor de autenticación que usa UserDetailsService + BCrypt para validar credenciales.
+    // CAMBIO: en Spring Security 6.4+ DaoAuthenticationProvider exige el UserDetailsService
+    // por constructor; el setter setUserDetailsService(...) fue removido.
     @Bean
     public AuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-        provider.setUserDetailsService(userDetailsService);
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
         provider.setPasswordEncoder(passwordEncoder());
         return provider;
     }

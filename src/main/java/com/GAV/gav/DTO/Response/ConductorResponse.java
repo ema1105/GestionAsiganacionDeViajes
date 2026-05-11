@@ -20,6 +20,7 @@ public class ConductorResponse {
     private String licencia;
     private Conductor.TipoLicencia tipoLicencia;
     private Boolean disponibilidad;
+    private Boolean activo;
 
     // Datos básicos del vehículo aplanados para evitar referencias circulares en la respuesta JSON
     private String marcaVehiculo;

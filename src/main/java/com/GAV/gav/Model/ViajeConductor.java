@@ -22,8 +22,6 @@ public class ViajeConductor {
     @JoinColumn(name = "conductor_id")
     private Conductor conductor;
 
-    // CAMBIO: visibilidad cambiada de private a public
-    // Necesario para que los repositorios con queries JPQL y los services puedan usarlo
     public enum EstadoSolicitud {
         PENDIENTE, ACEPTADO, RECHAZADO, EXPIRADO
     }
