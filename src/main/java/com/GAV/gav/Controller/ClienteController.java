@@ -7,6 +7,7 @@ import com.GAV.gav.DTO.Response.*;
 import com.GAV.gav.Model.Viaje;
 import com.GAV.gav.Security.AuthenticatedUserProvider;
 import com.GAV.gav.Service.ClienteService;
+import com.GAV.gav.Service.LugarService;
 import com.GAV.gav.Service.TrackingService;
 import com.GAV.gav.Service.ViajeService;
 import jakarta.validation.Valid;
@@ -30,6 +31,7 @@ public class ClienteController {
     private final ViajeService viajeService;
     private final ClienteService clienteService;
     private final TrackingService trackingService;
+    private final LugarService lugarService;
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
     // ====================================================================
@@ -198,5 +200,15 @@ public class ClienteController {
         Long clienteId = authenticatedUserProvider.getCurrentUserId();
         return ResponseEntity.ok(trackingService.recorridoCompleto(
                 viajeId, clienteId, true, false));
+    }
+
+    // ====================================================================
+    // LUGARES MÁS SOLICITADOS (históricos) — para el chatbot / dashboard
+    // ====================================================================
+
+    @GetMapping("/lugares/mas-solicitados")
+    public ResponseEntity<List<LugarPopularResponse>> lugaresMasSolicitados(
+            @RequestParam(defaultValue = "10") int limite) {
+        return ResponseEntity.ok(lugarService.lugaresMasSolicitados(limite));
     }
 }

@@ -48,6 +48,13 @@ public class Viaje {
     @JoinColumn(name = "automovil_id")
     private Automovil automovil;
 
+    // NUEVO: lugar del catálogo al que corresponde el destino (si las coordenadas
+    // caen dentro del radio de un POI conocido). Nullable: viajes sin match quedan en null.
+    // Se usa para calcular "lugares más solicitados".
+    @ManyToOne
+    @JoinColumn(name = "lugar_destino_id")
+    private Lugar lugarDestino;
+
     @Column(name = "precio")
     private BigDecimal precio;
 
@@ -167,6 +174,14 @@ public class Viaje {
 
     public void setAutomovil(Automovil automovil) {
         this.automovil = automovil;
+    }
+
+    public Lugar getLugarDestino() {
+        return lugarDestino;
+    }
+
+    public void setLugarDestino(Lugar lugarDestino) {
+        this.lugarDestino = lugarDestino;
     }
 
     public BigDecimal getPrecio() {

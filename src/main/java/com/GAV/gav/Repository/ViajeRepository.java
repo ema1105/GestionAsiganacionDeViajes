@@ -126,4 +126,16 @@ public interface ViajeRepository extends JpaRepository<Viaje, Long> {
     long contarViajesFinalizadosPorConductor(@Param("conductorId") Long conductorId,
                                               @Param("desde") LocalDateTime desde,
                                               @Param("hasta") LocalDateTime hasta);
+
+    // ====== Chatbot: lugares más solicitados (históricos) ======
+    // Cuenta viajes FINALIZADOS agrupados por lugar destino conocido.
+    // Devuelve filas [Lugar, Long]; el limite se pasa vía Pageable.
+    @Query("""
+        SELECT v.lugarDestino, COUNT(v) FROM Viaje v
+        WHERE v.estadoViaje = com.GAV.gav.Model.Viaje$EstadoViaje.FINALIZADO
+        AND v.lugarDestino IS NOT NULL
+        GROUP BY v.lugarDestino
+        ORDER BY COUNT(v) DESC
+    """)
+    List<Object[]> lugaresMasSolicitados(Pageable pageable);
 }

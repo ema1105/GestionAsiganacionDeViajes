@@ -40,6 +40,7 @@ public class ViajeService {
     private final ViajeConductorRepository viajeConductorRepository;
     private final TarifaRepository tarifaRepository;
     private final NotificacionService notificacionService;
+    private final LugarRepository lugarRepository;
 
     // El cliente solicita un viaje. Se crea el registro, se calcula el precio
     // y se dispara la asignación FIFO inmediatamente.
@@ -62,6 +63,9 @@ public class ViajeService {
         viaje.setEstadoViaje(Viaje.EstadoViaje.SOLICITADO);
         viaje.setFechaSolicitud(LocalDateTime.now());
         viaje.setPrecioCalculado(precio);
+        // Vincular el destino a un lugar conocido del catálogo (si cae dentro de su radio).
+        viaje.setLugarDestino(
+                matchLugarDestino(request.getDestinoLat(), request.getDestinoLng()));
         Viaje viajeGuardado = viajeRepository.save(viaje);
 
         // Disparar la asignación FIFO en la misma transacción
@@ -89,6 +93,38 @@ public class ViajeService {
                 ? tarifa.getMultiplicadorDinamico() : BigDecimal.ONE;
 
         return subtotal.multiply(multiplicador).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    // Empareja el destino (lat,lng) con el primer lugar activo del catálogo cuyo
+    // radio contenga el punto. Devuelve null si ninguno coincide.
+    private Lugar matchLugarDestino(BigDecimal lat, BigDecimal lng) {
+        if (lat == null || lng == null) {
+            return null;
+        }
+        double dLat = lat.doubleValue();
+        double dLng = lng.doubleValue();
+        return lugarRepository.findActivos().stream()
+                .filter(l -> l.getLat() != null && l.getLng() != null)
+                .filter(l -> {
+                    double dist = haversineMetros(dLat, dLng,
+                            l.getLat().doubleValue(), l.getLng().doubleValue());
+                    int radio = l.getRadioMetros() != null ? l.getRadioMetros() : 200;
+                    return dist <= radio;
+                })
+                .findFirst()
+                .orElse(null);
+    }
+
+    // Distancia en metros entre dos coordenadas (Haversine).
+    private static double haversineMetros(double lat1, double lng1,
+                                          double lat2, double lng2) {
+        double radioTierraM = 6_371_000.0;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLng = Math.toRadians(lng2 - lng1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        return radioTierraM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
     // Primera asignación: no hay conductores excluidos aún, solo filtrar por capacidad
