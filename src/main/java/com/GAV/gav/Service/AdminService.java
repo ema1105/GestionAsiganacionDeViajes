@@ -1,6 +1,7 @@
 package com.GAV.gav.Service;
 
 import com.GAV.gav.DTO.Request.ActualizarConductorRequest;
+import com.GAV.gav.DTO.Request.ActualizarPerfilAdminRequest;
 import com.GAV.gav.DTO.Request.ActualizarVehiculoRequest;
 import com.GAV.gav.DTO.Request.CrearVehiculoRequest;
 import com.GAV.gav.DTO.Request.RegisterConductorRequest;
@@ -8,6 +9,7 @@ import com.GAV.gav.DTO.Response.*;
 import com.GAV.gav.Exception.BusinessException;
 import com.GAV.gav.Model.*;
 import com.GAV.gav.Repository.*;
+import com.GAV.gav.Security.AuthenticatedUserProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -40,6 +42,7 @@ public class AdminService {
     private final CategoriaVehiculoRepository categoriaVehiculoRepository;
     private final ViajeRepository viajeRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuthenticatedUserProvider userProvider;
 
     // ========================================================================
     // CONDUCTORES — registro, listado, modificación, soft-delete, hard-delete
@@ -220,6 +223,39 @@ public class AdminService {
                 .toList();
     }
 
+    // Listado de clientes (usuarios con ROLE_CLIENTE) para el panel admin.
+    // Incluye el total de viajes de cada cliente.
+    public List<java.util.Map<String, Object>> listarClientes() {
+        return usuarioRepository.findByRol_Nombre("ROLE_CLIENTE")
+                .stream()
+                .map(u -> {
+                    java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+                    m.put("id", u.getId());
+                    m.put("nombreCompleto", u.getNombreCompleto());
+                    m.put("apellidosCompletos", u.getApellidosCompletos());
+                    m.put("email", u.getEmail());
+                    m.put("telefono", u.getTelefono());
+                    m.put("totalViajes", viajeRepository.countByClienteId(u.getId()));
+                    return m;
+                })
+                .toList();
+    }
+
+    // Categorías de vehículo para poblar el selector del formulario de
+    // registro de conductor en el panel admin. Devuelve id + nombre + descripción.
+    public List<java.util.Map<String, Object>> listarCategorias() {
+        return categoriaVehiculoRepository.findAll()
+                .stream()
+                .map(c -> {
+                    java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+                    m.put("id", c.getId());
+                    m.put("nombre", c.getNombre());
+                    m.put("descripcion", c.getDescripcion());
+                    return m;
+                })
+                .toList();
+    }
+
     public VehiculoResponse obtenerVehiculo(Long id) {
         Automovil a = automovilRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(
@@ -368,6 +404,43 @@ public class AdminService {
     }
 
     // ========================================================================
+    // PERFIL DEL ADMINISTRADOR
+    // ========================================================================
+
+    public UsuarioResponse obtenerPerfilAdmin() {
+        Usuario usuario = userProvider.getCurrentUser();
+        return mapToUsuarioResponse(usuario);
+    }
+
+    @Transactional
+    public UsuarioResponse actualizarPerfilAdmin(ActualizarPerfilAdminRequest req) {
+        Usuario usuario = userProvider.getCurrentUser();
+
+        if (req.getEmail() != null && !req.getEmail().isBlank()) {
+            // Verificar unicidad solo si cambia el correo
+            if (!req.getEmail().equalsIgnoreCase(usuario.getEmail())
+                    && usuarioRepository.existsByEmail(req.getEmail())) {
+                throw new BusinessException("El correo ya está registrado por otro usuario.",
+                        HttpStatus.CONFLICT);
+            }
+            usuario.setEmail(req.getEmail());
+        }
+        if (req.getTelefono() != null && !req.getTelefono().isBlank()) {
+            if (!req.getTelefono().equals(usuario.getTelefono())
+                    && usuarioRepository.existsByTelefono(req.getTelefono())) {
+                throw new BusinessException("El teléfono ya está registrado por otro usuario.",
+                        HttpStatus.CONFLICT);
+            }
+            usuario.setTelefono(req.getTelefono());
+        }
+        if (req.getContrasena() != null && !req.getContrasena().isBlank()) {
+            usuario.setContrasena(passwordEncoder.encode(req.getContrasena()));
+        }
+
+        return mapToUsuarioResponse(usuarioRepository.save(usuario));
+    }
+
+    // ========================================================================
     // Helpers de mapeo y validación
     // ========================================================================
 
@@ -381,6 +454,20 @@ public class AdminService {
             throw new BusinessException("El número de documento ya está registrado.", HttpStatus.CONFLICT);
         if (usuarioRepository.existsByNombreUsuario(nombreUsuario))
             throw new BusinessException("El nombre de usuario ya está en uso.", HttpStatus.CONFLICT);
+    }
+
+    private UsuarioResponse mapToUsuarioResponse(Usuario u) {
+        return UsuarioResponse.builder()
+                .id(u.getId())
+                .nombreCompleto(u.getNombreCompleto())
+                .apellidosCompletos(u.getApellidosCompletos())
+                .nombreUsuario(u.getNombreUsuario())
+                .email(u.getEmail())
+                .telefono(u.getTelefono())
+                .tipoDocumento(u.getTipoDocumento())
+                .numeroDocumento(u.getNumeroDocumento())
+                .rol(u.getRol() != null ? u.getRol().getNombre() : null)
+                .build();
     }
 
     private ConductorResponse mapToConductorResponse(Conductor c) {

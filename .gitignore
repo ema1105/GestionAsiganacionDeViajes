@@ -31,3 +31,15 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Secretos / claves API — NUNCA commitear ###
+secrets.properties
+src/main/resources/secrets.properties
+**/.env
+frontend/.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.pyc

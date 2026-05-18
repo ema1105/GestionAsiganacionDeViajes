@@ -38,6 +38,8 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final UserDetailsServiceImpl userDetailsService;
+    private final RestAuthenticationEntryPoint authenticationEntryPoint;
+    private final RestAccessDeniedHandler accessDeniedHandler;
 
     // Lista de orígenes permitidos para CORS, configurable por property.
     // Default: ambos puertos típicos de desarrollo de React (Vite y CRA).
@@ -51,7 +53,13 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            // Semántica correcta: sin/expirado token → 401; rol insuficiente → 403.
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint(authenticationEntryPoint)
+                .accessDeniedHandler(accessDeniedHandler))
             .authorizeHttpRequests(auth -> auth
+                // Preflight CORS: el navegador no envía el header Authorization en OPTIONS
+                .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                 // Endpoints públicos: registro y login no requieren token
                 .requestMatchers("/api/auth/**").permitAll()
                 // Documentación Swagger (SpringDoc)

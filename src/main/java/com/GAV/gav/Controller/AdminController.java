@@ -1,6 +1,7 @@
 package com.GAV.gav.Controller;
 
 import com.GAV.gav.DTO.Request.ActualizarConductorRequest;
+import com.GAV.gav.DTO.Request.ActualizarPerfilAdminRequest;
 import com.GAV.gav.DTO.Request.ActualizarVehiculoRequest;
 import com.GAV.gav.DTO.Request.CrearVehiculoRequest;
 import com.GAV.gav.DTO.Request.RegisterConductorRequest;
@@ -94,6 +95,16 @@ public class AdminController {
         return ResponseEntity.ok(adminService.listarVehiculos());
     }
 
+    @GetMapping("/categorias")
+    public ResponseEntity<List<java.util.Map<String, Object>>> listarCategorias() {
+        return ResponseEntity.ok(adminService.listarCategorias());
+    }
+
+    @GetMapping("/clientes")
+    public ResponseEntity<List<java.util.Map<String, Object>>> listarClientes() {
+        return ResponseEntity.ok(adminService.listarClientes());
+    }
+
     @GetMapping("/vehiculos/{id}")
     public ResponseEntity<VehiculoResponse> obtenerVehiculo(@PathVariable Long id) {
         return ResponseEntity.ok(adminService.obtenerVehiculo(id));
@@ -180,6 +191,21 @@ public class AdminController {
     }
 
     // ====================================================================
+    // PERFIL DEL ADMINISTRADOR
+    // ====================================================================
+
+    @GetMapping("/perfil")
+    public ResponseEntity<UsuarioResponse> obtenerPerfil() {
+        return ResponseEntity.ok(adminService.obtenerPerfilAdmin());
+    }
+
+    @PutMapping("/perfil")
+    public ResponseEntity<UsuarioResponse> actualizarPerfil(
+            @Valid @RequestBody ActualizarPerfilAdminRequest request) {
+        return ResponseEntity.ok(adminService.actualizarPerfilAdmin(request));
+    }
+
+    // ====================================================================
     // TRACKING — vista admin del recorrido completo de cualquier viaje
     // ====================================================================
 
@@ -189,5 +215,13 @@ public class AdminController {
         // Admin omite la validación de ownership (3er y 4to args = false)
         return ResponseEntity.ok(trackingService.recorridoCompleto(
                 viajeId, null, false, false));
+    }
+    //=====================================================================
+    //DASHBOARD POWER BI — devuelve la URL del reporte para que el frontend la embeba
+    //=====================================================================
+    @GetMapping("/dashboard/url")
+    public ResponseEntity<java.util.Map<String, String>> obtenerUrlDashboard() {
+        String powerBiUrl = "https://app.powerbi.com/view?r=eyJrIjoiNDFjMWEyZDgtYTU4NC00MWNmLWEyNWQtMThiY2ZkZDBiNmE1IiwidCI6IjlkMTJiZjNmLWU0ZjYtNDdhYi05MTJmLTFhMmYwZmM0OGFhNCIsImMiOjR9";
+        return ResponseEntity.ok(java.util.Map.of("url", powerBiUrl));
     }
 }

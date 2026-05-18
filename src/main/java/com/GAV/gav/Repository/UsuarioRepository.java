@@ -4,12 +4,16 @@ import com.GAV.gav.Model.Usuario;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 
     Optional<Usuario> findByNombreUsuario(String nombreUsuario);
+
+    // Usuarios por nombre de rol (ej. "ROLE_CLIENTE") para el listado admin.
+    List<Usuario> findByRol_Nombre(String nombreRol);
 
     Optional<Usuario> findByEmail(String email);
 
