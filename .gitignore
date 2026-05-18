@@ -31,3 +31,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Secretos locales (NUNCA commitear) ###
+secrets.properties
+src/main/resources/secrets.properties

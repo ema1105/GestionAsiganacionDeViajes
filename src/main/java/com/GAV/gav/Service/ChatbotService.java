@@ -40,22 +40,38 @@ public class ChatbotService {
     @Value("${chatbot.top-solicitados:10}")
     private int topSolicitados;
 
+    // Mensaje controlado que se muestra al cliente cuando el asistente no
+    // puede responder. Nunca se expone el error técnico al usuario.
+    private static final String MENSAJE_NO_DISPONIBLE =
+            "El asistente no está disponible temporalmente. "
+            + "Vuelve a intentarlo en unos minutos.";
+
     public ChatbotResponse responder(String mensajeUsuario) {
+        // Sin API key: degradación elegante (no se lanza error técnico).
         if (apiKey == null || apiKey.isBlank()) {
-            throw new BusinessException(
-                    "El chatbot no está configurado (falta CHATBOT_API_KEY).",
-                    HttpStatus.SERVICE_UNAVAILABLE);
+            return ChatbotResponse.builder()
+                    .respuesta(MENSAJE_NO_DISPONIBLE)
+                    .lugaresMasSolicitados(List.of())
+                    .build();
         }
 
-        List<LugarPopularResponse> populares = lugarService.lugaresMasSolicitados(topSolicitados);
-        String systemPrompt = construirSystemPrompt(populares);
+        List<LugarPopularResponse> populares =
+                lugarService.lugaresMasSolicitados(topSolicitados);
 
-        String texto = llamarGemini(systemPrompt, mensajeUsuario);
-
-        return ChatbotResponse.builder()
-                .respuesta(texto)
-                .lugaresMasSolicitados(populares)
-                .build();
+        try {
+            String systemPrompt = construirSystemPrompt(populares);
+            String texto = llamarGemini(systemPrompt, mensajeUsuario);
+            return ChatbotResponse.builder()
+                    .respuesta(texto)
+                    .lugaresMasSolicitados(populares)
+                    .build();
+        } catch (Exception e) {
+            // Fallo de proveedor/red: respuesta controlada, sin error visible.
+            return ChatbotResponse.builder()
+                    .respuesta(MENSAJE_NO_DISPONIBLE)
+                    .lugaresMasSolicitados(populares)
+                    .build();
+        }
     }
 
     private String construirSystemPrompt(List<LugarPopularResponse> populares) {

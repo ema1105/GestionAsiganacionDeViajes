@@ -1,0 +1,60 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    font-family: 'DM Sans', sans-serif;
+    background-color: #0d0d0d;
+    color: #f5f0e8;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Scrollbar premium oscura */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0a0a0a;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #2a2520;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3a332a;
+  }
+}
+
+@layer components {
+  /* Patrón de grid sutil para la columna izquierda del login */
+  .grid-pattern {
+    background-image:
+      linear-gradient(rgba(92, 82, 71, 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(92, 82, 71, 0.08) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  /* Elevación premium en hover de botones principales */
+  .lift {
+    transition: all 0.2s ease;
+  }
+  .lift:hover {
+    transform: translateY(-1px);
+  }
+
+  /* Label premium uppercase de formularios */
+  .label-premium {
+    @apply text-[11px] font-medium uppercase tracking-wider text-muted;
+  }
+}
