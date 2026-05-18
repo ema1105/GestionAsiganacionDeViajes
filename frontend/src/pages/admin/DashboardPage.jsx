@@ -104,7 +104,7 @@ export default function AdminDashboardPage() {
   return (
     <div>
       <PageHeader
-        title="Dashboard"
+        title="Estadísticas"
         subtitle="Estado operativo general del sistema GAV"
       />
 

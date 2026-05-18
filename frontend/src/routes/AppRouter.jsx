@@ -11,6 +11,7 @@ import ConductoresPage from '../pages/admin/ConductoresPage.jsx';
 import VehiculosPage from '../pages/admin/VehiculosPage.jsx';
 import ClientesPage from '../pages/admin/ClientesPage.jsx';
 import ViajesPage from '../pages/admin/ViajesPage.jsx';
+import AsignacionPage from '../pages/admin/AsignacionPage.jsx';
 import ClienteDashboardPage from '../pages/cliente/DashboardPage.jsx';
 import ClienteSeguimientoPage from '../pages/cliente/SeguimientoPage.jsx';
 import ClienteHistorialPage from '../pages/cliente/HistorialPage.jsx';
@@ -49,6 +50,7 @@ export default function AppRouter() {
             <Route path="/admin/vehiculos" element={<VehiculosPage />} />
             <Route path="/admin/clientes" element={<ClientesPage />} />
             <Route path="/admin/viajes" element={<ViajesPage />} />
+            <Route path="/admin/asignacion" element={<AsignacionPage />} />
             <Route
               path="/admin/notificaciones"
               element={<NotificacionesPage />}

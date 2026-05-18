@@ -49,9 +49,19 @@ function dot(color, ring = false) {
   };
 }
 
+// Límites geográficos de Cartagena de Indias y corregimientos aledaños.
+// Se usan tanto para restringir el mapa como para validar puntos en el padre.
+export const CARTAGENA_BOUNDS = {
+  north: 10.54,
+  south: 10.26,
+  east:  -75.46,
+  west:  -75.66,
+};
+
 // Mapa reutilizable. Soporta modo lectura y modo interactivo:
 //  - onMapClick(latLng): click en el mapa devuelve coordenadas
 //  - markers[].draggable + onMarkerDragEnd(kind, latLng): pin arrastrable
+//  - restrictToCartagena: bloquea el paneo fuera del área de Cartagena
 // Fallback elegante si no hay clave o falla la carga (la vista no se rompe).
 export default function MapView({
   center = { lat: 10.4236, lng: -75.5512 },
@@ -60,6 +70,7 @@ export default function MapView({
   className = '',
   onMapClick,
   onMarkerDragEnd,
+  restrictToCartagena = false,
 }) {
   const { loaded, error } = useGoogleMaps();
   const divRef = useRef(null);
@@ -74,14 +85,21 @@ export default function MapView({
 
   useEffect(() => {
     if (!loaded || !divRef.current || mapRef.current) return;
-    const map = new window.google.maps.Map(divRef.current, {
+    const mapOptions = {
       center,
       zoom,
       disableDefaultUI: true,
       styles: DARK_STYLE,
       backgroundColor: '#0d0d0d',
       draggableCursor: clickCbRef.current ? 'crosshair' : undefined,
-    });
+    };
+    if (restrictToCartagena) {
+      mapOptions.restriction = {
+        latLngBounds: CARTAGENA_BOUNDS,
+        strictBounds: false,
+      };
+    }
+    const map = new window.google.maps.Map(divRef.current, mapOptions);
     map.addListener('click', (e) => {
       clickCbRef.current?.({ lat: e.latLng.lat(), lng: e.latLng.lng() });
     });

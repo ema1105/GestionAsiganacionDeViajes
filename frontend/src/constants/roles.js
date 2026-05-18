@@ -25,12 +25,12 @@ export const HOME_BY_ROLE = {
 // Navegación del sidebar por rol. `icon` es el nombre exportado en Icons.jsx.
 export const NAV_BY_ROLE = {
   [ROLES.ADMIN]: [
-    { to: '/admin', label: 'Dashboard', icon: 'IconDashboard' },
-    { to: '/admin/estadisticas', label: 'Estadísticas', icon: 'IconChart' },
+    { to: '/admin', label: 'Estadísticas', icon: 'IconDashboard' },
+    { to: '/admin/estadisticas', label: 'Dashboard', icon: 'IconChart' },
     { to: '/admin/conductores', label: 'Conductores', icon: 'IconDrivers' },
-    { to: '/admin/vehiculos', label: 'Vehículos', icon: 'IconCar' },
     { to: '/admin/clientes', label: 'Clientes', icon: 'IconClients' },
     { to: '/admin/viajes', label: 'Viajes', icon: 'IconTrip' },
+    { to: '/admin/asignacion', label: 'Asignación', icon: 'IconActivity' },
     { to: '/admin/notificaciones', label: 'Notificaciones', icon: 'IconBell' },
     { to: '/admin/perfil', label: 'Mi Perfil', icon: 'IconUser' },
   ],

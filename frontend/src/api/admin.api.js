@@ -61,4 +61,16 @@ export const adminApi = {
       .get('/admin/categorias')
       .then((r) => r.data)
       .catch(() => []),
+
+  // --- Perfil del administrador ---
+  obtenerPerfil: () =>
+    api.get('/admin/perfil').then((r) => r.data).catch(() => null),
+  actualizarPerfil: (payload) =>
+    api.put('/admin/perfil', payload).then((r) => r.data),
+
+  // --- Modelo matemático de asignación (ILP, microservicio Python) ---
+  // POST /api/asignacion/ejecutar → AsignacionResultDTO. No está bajo /admin
+  // (SecurityConfig solo exige autenticación), pero se invoca desde el panel admin.
+  ejecutarAsignacion: () =>
+    api.post('/asignacion/ejecutar').then((r) => r.data),
 };

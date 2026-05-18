@@ -50,11 +50,17 @@ export default {
           '0%': { opacity: '0', transform: 'translateX(24px)' },
           '100%': { opacity: '1', transform: 'translateX(0)' },
         },
+        'progress-indeterminate': {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(400%)' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 0.2s ease',
         'slide-up': 'slide-up 0.25s ease',
         'toast-in': 'toast-in 0.25s ease',
+        'progress-indeterminate':
+          'progress-indeterminate 1.2s ease-in-out infinite',
       },
     },
   },

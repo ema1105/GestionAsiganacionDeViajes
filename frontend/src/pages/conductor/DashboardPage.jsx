@@ -17,6 +17,25 @@ export default function ConductorDashboardPage() {
   const [pendiente, setPendiente] = useState(null);
   const [busy, setBusy] = useState(false);
   const [calificar, setCalificar] = useState(null); // viajeId a calificar
+  const [vehiculo, setVehiculo] = useState(null);   // datos del vehículo asignado
+
+  // Carga los datos del vehículo asignado una sola vez al montar.
+  useEffect(() => {
+    conductorApi
+      .obtenerPerfil()
+      .then((p) => {
+        if (p?.marcaVehiculo) {
+          setVehiculo({
+            marca:      p.marcaVehiculo,
+            modelo:     p.modeloVehiculo,
+            placa:      p.placaVehiculo,
+            capacidad:  p.capacidadMaxima,
+            categoria:  p.categoriaVehiculo,
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const refrescar = useCallback(async () => {
     const [a, p] = await Promise.all([
@@ -91,6 +110,33 @@ export default function ConductorDashboardPage() {
         title="Panel del Conductor"
         subtitle="Tu viaje activo y solicitudes entrantes"
       />
+
+      {/* ── Tarjeta del vehículo asignado ── */}
+      {vehiculo && (
+        <Card className="mb-6 p-6">
+          <p className="mb-4 text-[11px] uppercase tracking-wider text-muted">
+            Vehículo asignado
+          </p>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+            <VehiculoDato etiqueta="Marca"     valor={vehiculo.marca} />
+            <VehiculoDato etiqueta="Modelo"    valor={vehiculo.modelo} />
+            <VehiculoDato
+              etiqueta="Placa"
+              valor={vehiculo.placa}
+              highlight
+            />
+            <VehiculoDato
+              etiqueta="Capacidad"
+              valor={
+                vehiculo.capacidad
+                  ? `${vehiculo.capacidad} pasajeros`
+                  : undefined
+              }
+            />
+            <VehiculoDato etiqueta="Categoría" valor={vehiculo.categoria} />
+          </div>
+        </Card>
+      )}
 
       {/* Solicitud pendiente */}
       {pendiente && (
@@ -238,6 +284,22 @@ export default function ConductorDashboardPage() {
         viajeId={calificar}
         onClose={() => setCalificar(null)}
       />
+    </div>
+  );
+}
+
+// Celda de dato del vehículo con etiqueta superior.
+function VehiculoDato({ etiqueta, valor, highlight = false }) {
+  return (
+    <div className="rounded-lg bg-surface/60 px-4 py-3">
+      <p className="text-[10px] uppercase tracking-wider text-muted">{etiqueta}</p>
+      <p
+        className={`mt-1 text-sm font-medium ${
+          highlight ? 'font-mono text-gold' : 'text-ink'
+        }`}
+      >
+        {valor ?? '—'}
+      </p>
     </div>
   );
 }

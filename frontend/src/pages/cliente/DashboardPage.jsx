@@ -1,18 +1,25 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Card from '../../components/ui/Card.jsx';
 import Button from '../../components/ui/Button.jsx';
-import MapView from '../../components/map/MapView.jsx';
+import MapView, { CARTAGENA_BOUNDS } from '../../components/map/MapView.jsx';
 import { reverseGeocode } from '../../components/map/geocode.js';
 import { IconPin } from '../../components/icons/Icons.jsx';
 import { clienteApi } from '../../api/cliente.api.js';
 import { useToast } from '../../context/ToastContext.jsx';
 
 const TIPOS = [
-  { key: 'CONFORT', label: 'Confort', mult: 1 },
-  { key: 'PREMIUM', label: 'Premium', mult: 1.6 },
-  { key: 'XL', label: 'XL', mult: 2 },
+  { key: 'CONFORT', label: 'Confort', mult: 1,   maxPax: 4 },
+  { key: 'PREMIUM', label: 'Premium', mult: 1.6, maxPax: 4 },
+  { key: 'XL',      label: 'XL',      mult: 2,   maxPax: 6 },
 ];
+
+// Valida que las coordenadas estén dentro del área de Cartagena.
+const dentroDeCartagena = (lat, lng) =>
+  lat >= CARTAGENA_BOUNDS.south &&
+  lat <= CARTAGENA_BOUNDS.north &&
+  lng >= CARTAGENA_BOUNDS.west  &&
+  lng <= CARTAGENA_BOUNDS.east;
 
 // Puntos de referencia conocidos de Cartagena de Indias.
 // El cliente piensa en lugares, no en coordenadas.
@@ -44,6 +51,19 @@ export default function ClienteDashboardPage() {
   const [modo, setModo] = useState('origen'); // qué punto define el próximo clic
   const [loading, setLoading] = useState(false);
 
+  // Selección automática de vehículo según pasajeros:
+  //   ≥ 5 → solo XL puede acomodar el grupo; se fuerza y se bloquean los demás.
+  //   < 5 → si estaba en XL forzado, vuelve a Confort.
+  useEffect(() => {
+    if (pasajeros >= 5) {
+      setTipo('XL');
+    } else if (pasajeros < 5 && tipo === 'XL') {
+      // Solo revertir si el tipo era XL para no pisar una elección explícita
+      // del usuario cuando baja el número de pasajeros.
+      setTipo('CONFORT');
+    }
+  }, [pasajeros]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Coloca un punto y resuelve su dirección legible (best-effort).
   const fijarPunto = useCallback(
     async (cual, lat, lng, etiqueta) => {
@@ -60,8 +80,16 @@ export default function ClienteDashboardPage() {
   );
 
   const onMapClick = useCallback(
-    ({ lat, lng }) => fijarPunto(modo, lat, lng),
-    [modo, fijarPunto]
+    ({ lat, lng }) => {
+      if (!dentroDeCartagena(lat, lng)) {
+        toast.error(
+          'Solo se permiten destinos dentro de Cartagena de Indias y sus corregimientos'
+        );
+        return;
+      }
+      fijarPunto(modo, lat, lng);
+    },
+    [modo, fijarPunto, toast]
   );
 
   const onMarkerDragEnd = useCallback(
@@ -229,20 +257,37 @@ export default function ClienteDashboardPage() {
 
             <div>
               <p className="label-premium mb-2">Tipo de vehículo</p>
+              {pasajeros >= 5 && (
+                <p className="mb-2 text-[11px] text-gold/80">
+                  Con 5 o más pasajeros solo está disponible XL
+                </p>
+              )}
               <div className="grid grid-cols-3 gap-3">
-                {TIPOS.map((t) => (
-                  <button
-                    key={t.key}
-                    onClick={() => setTipo(t.key)}
-                    className={`rounded-lg border py-3 text-sm font-medium transition-all duration-200 ${
-                      tipo === t.key
-                        ? 'border-gold/60 bg-gold/10 text-gold'
-                        : 'border-line text-muted hover:text-subtle'
-                    }`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
+                {TIPOS.map((t) => {
+                  const forzado = pasajeros >= 5 && t.key !== 'XL';
+                  return (
+                    <button
+                      key={t.key}
+                      onClick={() => !forzado && setTipo(t.key)}
+                      disabled={forzado}
+                      title={forzado ? 'No disponible para 5 o más pasajeros' : ''}
+                      className={`rounded-lg border py-3 text-sm font-medium transition-all duration-200 ${
+                        tipo === t.key
+                          ? 'border-gold/60 bg-gold/10 text-gold'
+                          : forzado
+                          ? 'cursor-not-allowed border-line/30 text-muted/30'
+                          : 'border-line text-muted hover:text-subtle'
+                      }`}
+                    >
+                      <span>{t.label}</span>
+                      {forzado && (
+                        <span className="block text-[9px] text-muted/40 mt-0.5">
+                          No disponible
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -267,6 +312,7 @@ export default function ClienteDashboardPage() {
             onMapClick={onMapClick}
             onMarkerDragEnd={onMarkerDragEnd}
             markers={markers}
+            restrictToCartagena
           />
           {origen && destino && (
             <div className="absolute bottom-5 left-5 right-5 z-10 rounded-xl border border-line bg-surface/95 p-5 backdrop-blur">

@@ -2,8 +2,8 @@
 // Uso: <Table head={['A','B']}><tr>...</tr></Table>
 export default function Table({ head = [], children, empty = 'Sin registros' }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-line">
-      <table className="w-full border-collapse text-sm">
+    <div className="-mx-4 overflow-x-auto rounded-xl border-y border-line sm:mx-0 sm:border sm:border-line">
+      <table className="w-full min-w-[640px] border-collapse text-sm">
         <thead>
           <tr className="border-b border-line bg-panel/60">
             {head.map((h) => (

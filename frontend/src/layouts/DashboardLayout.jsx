@@ -25,7 +25,7 @@ export default function DashboardLayout() {
           <span className="font-serif text-lg text-ink">GAV</span>
         </header>
 
-        <main className="flex-1 p-6 lg:p-10">
+        <main className="flex-1 p-4 sm:p-6 lg:p-10">
           <Outlet />
         </main>
       </div>
