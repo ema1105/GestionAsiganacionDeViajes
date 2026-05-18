@@ -1,4 +1,10 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useMemo,
+} from 'react';
 
 const ToastContext = createContext(null);
 
@@ -21,11 +27,18 @@ export function ToastProvider({ children }) {
     [dismiss]
   );
 
-  const toast = {
-    success: (m) => push(m, 'success'),
-    error: (m) => push(m, 'error'),
-    info: (m) => push(m, 'info'),
-  };
+  // Referencia ESTABLE: si se recreara en cada render, cambiaría el `value`
+  // del Context y todo consumidor con `useEffect(..., [toast])` entraría en
+  // bucle de re-fetch. `push` ya es estable (useCallback), así que el objeto
+  // solo se crea una vez.
+  const toast = useMemo(
+    () => ({
+      success: (m) => push(m, 'success'),
+      error: (m) => push(m, 'error'),
+      info: (m) => push(m, 'info'),
+    }),
+    [push]
+  );
 
   return (
     <ToastContext.Provider value={toast}>

@@ -6,6 +6,8 @@ import Stars from '../../components/ui/Stars.jsx';
 import Spinner from '../../components/ui/Spinner.jsx';
 import { conductorApi } from '../../api/conductor.api.js';
 import { useToast } from '../../context/ToastContext.jsx';
+import { useRoleGate } from '../../hooks/useRoleGate.js';
+import { ROLES } from '../../constants/roles.js';
 
 const fmtFecha = (f) => {
   if (!f) return '';
@@ -24,6 +26,7 @@ const SIZE = 10;
 
 export default function CalificacionesPage() {
   const toast = useToast();
+  const { authorized } = useRoleGate(ROLES.CONDUCTOR);
   const [loading, setLoading] = useState(true);
   const [promedio, setPromedio] = useState({
     promedio: 0,
@@ -59,15 +62,17 @@ export default function CalificacionesPage() {
   );
 
   useEffect(() => {
+    if (!authorized) return;
     conductorApi
       .promedioCalificaciones()
       .then(setPromedio)
       .catch(() => {});
-  }, []);
+  }, [authorized]);
 
   useEffect(() => {
+    if (!authorized) return;
     cargarLista(page);
-  }, [page, cargarLista]);
+  }, [authorized, page, cargarLista]);
 
   return (
     <div>

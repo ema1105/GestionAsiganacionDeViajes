@@ -17,6 +17,9 @@ public interface ViajeRepository extends JpaRepository<Viaje, Long> {
 
     List<Viaje> findByClienteId(Long clienteId);
 
+    // Conteo de viajes por cliente para el listado admin (evita traer la lista).
+    long countByClienteId(Long clienteId);
+
     List<Viaje> findByConductorId(Long conductorId);
 
     List<Viaje> findByEstadoViaje(Viaje.EstadoViaje estado);

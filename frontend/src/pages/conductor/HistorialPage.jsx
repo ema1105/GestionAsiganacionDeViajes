@@ -6,6 +6,8 @@ import Badge, { estadoViajeTone } from '../../components/ui/Badge.jsx';
 import Spinner from '../../components/ui/Spinner.jsx';
 import { conductorApi } from '../../api/conductor.api.js';
 import { useToast } from '../../context/ToastContext.jsx';
+import { useRoleGate } from '../../hooks/useRoleGate.js';
+import { ROLES } from '../../constants/roles.js';
 
 const ESTADOS = [
   'ACEPTADO',
@@ -40,6 +42,7 @@ const SIZE = 10;
 
 export default function HistorialPage() {
   const toast = useToast();
+  const { authorized } = useRoleGate(ROLES.CONDUCTOR);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [data, setData] = useState({
@@ -76,8 +79,9 @@ export default function HistorialPage() {
   );
 
   useEffect(() => {
+    if (!authorized) return;
     cargar(page, filtros);
-  }, [page, cargar]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [authorized, page, cargar]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const aplicar = () => {
     setPage(0);

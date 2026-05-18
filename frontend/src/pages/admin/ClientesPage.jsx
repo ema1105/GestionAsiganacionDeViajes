@@ -25,13 +25,15 @@ export default function ClientesPage() {
   const [data, setData] = useState([]);
   const [q, setQ] = useState('');
 
+  // Carga única al montar. `toast` es un emisor estable y NO debe ser
+  // dependencia (provocaría re-fetch en cada notificación).
   useEffect(() => {
     adminApi
       .listarClientes()
       .then((d) => setData(Array.isArray(d) ? d : d?.content ?? []))
       .catch(() => toast.error('Error al cargar clientes'))
       .finally(() => setLoading(false));
-  }, [toast]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtrados = useMemo(
     () =>

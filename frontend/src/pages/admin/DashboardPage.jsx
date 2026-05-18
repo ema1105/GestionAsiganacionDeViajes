@@ -91,7 +91,8 @@ export default function AdminDashboardPage() {
       }
       setLoading(false);
     })();
-  }, [toast]);
+    // Carga única al montar; `toast` no debe ser dependencia.
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading || !op) {
     return (

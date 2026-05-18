@@ -9,9 +9,14 @@ import MapView from '../../components/map/MapView.jsx';
 import { IconStar } from '../../components/icons/Icons.jsx';
 import { conductorApi } from '../../api/conductor.api.js';
 import { useToast } from '../../context/ToastContext.jsx';
+import { useRoleGate } from '../../hooks/useRoleGate.js';
+import { ROLES } from '../../constants/roles.js';
 
 export default function ConductorDashboardPage() {
   const toast = useToast();
+  // Defensa en profundidad: ningún request de conductor se dispara si el
+  // rol autenticado no es CONDUCTOR (evita 403 de admin/cliente).
+  const { authorized } = useRoleGate(ROLES.CONDUCTOR);
   const [loading, setLoading] = useState(true);
   const [activo, setActivo] = useState(null);
   const [pendiente, setPendiente] = useState(null);
@@ -21,6 +26,7 @@ export default function ConductorDashboardPage() {
 
   // Carga los datos del vehículo asignado una sola vez al montar.
   useEffect(() => {
+    if (!authorized) return;
     conductorApi
       .obtenerPerfil()
       .then((p) => {
@@ -35,7 +41,7 @@ export default function ConductorDashboardPage() {
         }
       })
       .catch(() => {});
-  }, []);
+  }, [authorized]);
 
   const refrescar = useCallback(async () => {
     const [a, p] = await Promise.all([
@@ -48,11 +54,13 @@ export default function ConductorDashboardPage() {
   }, []);
 
   useEffect(() => {
+    // No dispara requests ni polling si el rol no es CONDUCTOR.
+    if (!authorized) return;
     refrescar();
     // Polling cada 6s para nuevas solicitudes y cambios de estado.
     const id = setInterval(refrescar, 6000);
     return () => clearInterval(id);
-  }, [refrescar]);
+  }, [authorized, refrescar]);
 
   const responder = async (aceptar) => {
     setBusy(true);

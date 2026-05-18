@@ -5,6 +5,8 @@ import Card from '../../components/ui/Card.jsx';
 import Spinner from '../../components/ui/Spinner.jsx';
 import { conductorApi } from '../../api/conductor.api.js';
 import { useToast } from '../../context/ToastContext.jsx';
+import { useRoleGate } from '../../hooks/useRoleGate.js';
+import { ROLES } from '../../constants/roles.js';
 
 const fmtMoney = (n) =>
   new Intl.NumberFormat('es-CO', {
@@ -24,6 +26,7 @@ const hoyISO = () => new Date().toISOString().slice(0, 10);
 
 export default function GananciasPage() {
   const toast = useToast();
+  const { authorized } = useRoleGate(ROLES.CONDUCTOR);
   const [loading, setLoading] = useState(true);
   const [fecha, setFecha] = useState(hoyISO());
   const [stats, setStats] = useState(null);
@@ -59,8 +62,9 @@ export default function GananciasPage() {
   );
 
   useEffect(() => {
+    if (!authorized) return;
     cargar(fecha);
-  }, [fecha, cargar]);
+  }, [authorized, fecha, cargar]);
 
   return (
     <div>

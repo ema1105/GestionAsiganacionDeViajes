@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth.js';
 import { authApi } from '../../api/auth.api.js';
-import { HOME_BY_ROLE } from '../../constants/roles.js';
+import { HOME_BY_ROLE, safeRedirectForRole } from '../../constants/roles.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import Input from '../../components/ui/Input.jsx';
 import Button from '../../components/ui/Button.jsx';
@@ -58,8 +58,11 @@ export default function LoginPage() {
         loginForm.nombreUsuario.trim(),
         loginForm.contrasena
       );
+      // Solo se honra el deep-link `from` si pertenece a la zona del rol;
+      // de lo contrario se va al home del rol (evita que un admin termine
+      // en /conductor por un enlace guardado y dispare requests ajenas).
       const from = location.state?.from?.pathname;
-      navigate(from ?? HOME_BY_ROLE[data.rol] ?? '/', { replace: true });
+      navigate(safeRedirectForRole(data.rol, from), { replace: true });
     } catch (err) {
       setServerError(
         err.status === 401

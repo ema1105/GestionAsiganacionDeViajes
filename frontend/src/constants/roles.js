@@ -22,6 +22,30 @@ export const HOME_BY_ROLE = {
   [ROLES.RECEPCIONISTA]: '/cliente',
 };
 
+// Prefijo de ruta base permitido por rol. Se usa para validar deep-links
+// (`from`) tras el login y evitar que un rol aterrice en una zona ajena
+// (ej.: un admin enviado a /conductor por un enlace guardado).
+export const BASE_PATH_BY_ROLE = {
+  [ROLES.ADMIN]: '/admin',
+  [ROLES.CLIENTE]: '/cliente',
+  [ROLES.CONDUCTOR]: '/conductor',
+  [ROLES.RECEPCIONISTA]: '/cliente',
+};
+
+// ¿La ruta `path` pertenece a la zona del rol `rol`?
+export function isPathAllowedForRole(path, rol) {
+  const base = BASE_PATH_BY_ROLE[rol];
+  if (!base || !path) return false;
+  return path === base || path.startsWith(base + '/');
+}
+
+// Destino seguro tras el login: respeta el deep-link `from` solo si es de la
+// zona del rol; en caso contrario manda al home del rol.
+export function safeRedirectForRole(rol, from) {
+  if (from && isPathAllowedForRole(from, rol)) return from;
+  return HOME_BY_ROLE[rol] ?? '/login';
+}
+
 // Navegación del sidebar por rol. `icon` es el nombre exportado en Icons.jsx.
 export const NAV_BY_ROLE = {
   [ROLES.ADMIN]: [
