@@ -1,6 +1,9 @@
-fastapi==0.115.6
-uvicorn==0.34.0
-pulp==2.9.0
-mysql-connector-python==9.1.0
-pandas==2.2.3
-pydantic==2.10.4
+# Dependencias del microservicio de optimización (ILP).
+# Sin pins estrictos: así hay wheels disponibles para versiones nuevas de
+# Python (3.12/3.13/3.14). pandas se eliminó: el preprocesamiento ahora es
+# Python puro (ver app/services/assign_service.py).
+fastapi>=0.115
+uvicorn>=0.34
+pulp>=2.9
+mysql-connector-python>=9.1
+pydantic>=2.10

@@ -44,4 +44,11 @@ public class NotificacionController {
         Long usuarioId = authenticatedUserProvider.getCurrentUserId();
         return ResponseEntity.ok(notificacionService.marcarComoLeida(id, usuarioId));
     }
+
+    @PutMapping("/leer-todas")
+    public ResponseEntity<Map<String, Integer>> marcarTodasComoLeidas() {
+        Long usuarioId = authenticatedUserProvider.getCurrentUserId();
+        int n = notificacionService.marcarTodasComoLeidas(usuarioId);
+        return ResponseEntity.ok(Map.of("marcadas", n));
+    }
 }

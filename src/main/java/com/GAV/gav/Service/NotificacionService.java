@@ -74,6 +74,16 @@ public class NotificacionService {
         return mapToResponse(n);
     }
 
+    // Marca TODAS las notificaciones no leídas del usuario como leídas.
+    @Transactional
+    public int marcarTodasComoLeidas(Long usuarioId) {
+        List<Notificacion> noLeidas = notificacionRepository
+                .findByUsuarioIdAndLeidaFalseOrderByFechaCreacionDesc(usuarioId);
+        noLeidas.forEach(n -> n.setLeida(true));
+        notificacionRepository.saveAll(noLeidas);
+        return noLeidas.size();
+    }
+
     private NotificacionResponse mapToResponse(Notificacion n) {
         return NotificacionResponse.builder()
                 .id(n.getId())
