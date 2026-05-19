@@ -62,11 +62,14 @@ export default function AsignacionPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  // Estado informativo (no error): datos insuficientes (HTTP 422).
+  const [aviso, setAviso] = useState(null);
   const [ejecutado, setEjecutado] = useState(false);
 
   const ejecutar = async () => {
     setLoading(true);
     setError(null);
+    setAviso(null);
     try {
       const raw = await adminApi.ejecutarAsignacion();
       const data = normalizar(raw);
@@ -77,11 +80,21 @@ export default function AsignacionPage() {
       );
     } catch (e) {
       setResult(null);
-      setError(
-        e?.mensaje ||
-          'No se pudo ejecutar el modelo de asignación. Verifica que el microservicio de optimización esté disponible.'
-      );
-      toast.error('Falló la ejecución del modelo');
+      // 422 = validación de negocio (datos insuficientes): es un estado
+      // controlado e informativo, NO un fallo del sistema.
+      if (e?.status === 422) {
+        setAviso(
+          e?.mensaje ||
+            'No hay datos suficientes para ejecutar la optimización.'
+        );
+        toast.info('No hay datos suficientes para optimizar');
+      } else {
+        setError(
+          e?.mensaje ||
+            'No se pudo ejecutar el modelo. Verifica que el microservicio de optimización esté disponible.'
+        );
+        toast.error('Falló la ejecución del modelo');
+      }
     } finally {
       setLoading(false);
     }
@@ -143,6 +156,29 @@ export default function AsignacionPage() {
         )}
       </Card>
 
+      {/* ── Aviso controlado: datos insuficientes (422) ── */}
+      {aviso && !loading && (
+        <Card className="mt-6 border-amber-500/30 p-6 animate-fade-in">
+          <div className="flex items-start gap-4">
+            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-lg text-amber-400">
+              i
+            </span>
+            <div>
+              <p className="font-medium text-ink">
+                No hay datos suficientes para optimizar
+              </p>
+              <p className="mt-1 text-sm text-muted">{aviso}</p>
+              <button
+                onClick={ejecutar}
+                className="mt-3 text-[13px] text-gold underline underline-offset-2 hover:text-gold/80"
+              >
+                Volver a intentar
+              </button>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* ── Estado de error ── */}
       {error && !loading && (
         <Card className="mt-6 border-red-500/30 p-6 animate-fade-in">
@@ -167,7 +203,7 @@ export default function AsignacionPage() {
       )}
 
       {/* ── Estado vacío inicial ── */}
-      {!ejecutado && !loading && !error && (
+      {!ejecutado && !loading && !error && !aviso && (
         <Card className="mt-6 flex flex-col items-center justify-center gap-3 p-12 text-center animate-fade-in">
           <span className="flex h-16 w-16 items-center justify-center rounded-2xl border border-gold/15 bg-gold/5">
             <IconActivity width={28} height={28} className="text-gold/50" />

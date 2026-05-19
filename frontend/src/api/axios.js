@@ -1,8 +1,18 @@
 import axios from 'axios';
+import { isTokenExpired } from '../utils/jwt.js';
 
 // Clave única bajo la que se persiste el JWT en localStorage.
 // Se exporta para que AuthContext use exactamente la misma.
 export const TOKEN_KEY = 'gav_token';
+
+// Cierre de sesión coherente desde la capa de red: limpia el token y redirige
+// al login una sola vez (evita bucles y estados "autenticado pero token muerto").
+function forzarCierreSesion() {
+  localStorage.removeItem(TOKEN_KEY);
+  if (window.location.pathname !== '/login') {
+    window.location.href = '/login';
+  }
+}
 
 // Instancia central de Axios. Todas las llamadas al backend pasan por aquí,
 // así los interceptores aplican a toda la app de forma consistente.
@@ -17,6 +27,17 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem(TOKEN_KEY);
   if (token && token.trim()) {
+    // Pre-validación de expiración: si el token ya venció, NO se envía (evita
+    // el 401/403 confuso "autenticado pero sin permiso"). Se cierra sesión
+    // limpiamente y se cancela la petición.
+    if (isTokenExpired(token)) {
+      forzarCierreSesion();
+      return Promise.reject({
+        status: 401,
+        mensaje: 'Tu sesión expiró. Inicia sesión nuevamente.',
+        data: null,
+      });
+    }
     config.headers = config.headers ?? {};
     config.headers.Authorization = `Bearer ${token.trim()}`;
   } else {
@@ -41,10 +62,7 @@ api.interceptors.response.use(
     // El backend ahora responde 401 (no 403) en estos casos: limpiamos la
     // sesión y redirigimos al login para evitar estados zombie.
     if (status === 401) {
-      localStorage.removeItem(TOKEN_KEY);
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
+      forzarCierreSesion();
     }
 
     // 403 = autenticado pero sin el rol requerido. NO se cierra sesión (el
