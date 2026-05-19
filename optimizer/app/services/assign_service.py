@@ -8,7 +8,6 @@ import os
 from typing import List
 
 import mysql.connector
-import pandas as pd
 
 from app.api.schemas import AssignRequest, AssignResponse, Asignacion
 from app.optimizer.model import build_model
@@ -33,8 +32,10 @@ def _leer_datos(req: AssignRequest):
         cursor = conn.cursor(dictionary=True)
 
         # Conductores disponibles.
+        # La PK de `conductor` es `usuario_id` (entidad con @MapsId), NO `id`.
+        # Se aliasa a `id` para mantener uniforme el resto del pipeline.
         cursor.execute(
-            "SELECT id FROM conductor WHERE disponibilidad = 1"
+            "SELECT usuario_id AS id FROM conductor WHERE disponibilidad = 1"
         )
         conductores = cursor.fetchall()
 
@@ -49,25 +50,27 @@ def _leer_datos(req: AssignRequest):
     finally:
         conn.close()
 
-    df_conductores = pd.DataFrame(conductores, columns=["id"])
-    df_viajes = pd.DataFrame(viajes, columns=["id", "conductor_id"])
-    return df_conductores, df_viajes
+    return conductores, viajes
+
+
+def _ids_limpios(filas: list, clave: str) -> List[int]:
+    """Extrae la columna `clave`, descarta nulos, deduplica preservando
+    el orden y castea a int. Reemplaza el preprocesamiento de pandas."""
+    vistos: dict = {}
+    for fila in filas:
+        valor = fila.get(clave)
+        if valor is None:
+            continue
+        vistos[int(valor)] = None  # dict preserva orden y deduplica
+    return list(vistos.keys())
 
 
 def asignar(req: AssignRequest) -> AssignResponse:
-    df_conductores, df_viajes = _leer_datos(req)
+    conductores, viajes = _leer_datos(req)
 
-    # Preprocesamiento con pandas: limpiar nulos/duplicados y tipar a int.
-    conductor_ids: List[int] = (
-        df_conductores["id"].dropna().drop_duplicates().astype(int).tolist()
-        if not df_conductores.empty
-        else []
-    )
-    viaje_ids: List[int] = (
-        df_viajes["id"].dropna().drop_duplicates().astype(int).tolist()
-        if not df_viajes.empty
-        else []
-    )
+    # Preprocesamiento sin pandas: limpiar nulos/duplicados y tipar a int.
+    conductor_ids: List[int] = _ids_limpios(conductores, "id")
+    viaje_ids: List[int] = _ids_limpios(viajes, "id")
 
     total_conductores = len(conductor_ids)
     total_viajes = len(viaje_ids)

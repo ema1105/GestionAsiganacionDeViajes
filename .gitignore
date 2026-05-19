@@ -43,3 +43,6 @@ frontend/.env
 # Python
 __pycache__/
 *.pyc
+
+# Python venv
+.venv/
