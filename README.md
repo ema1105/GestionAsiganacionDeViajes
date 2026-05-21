@@ -10,10 +10,38 @@ Antes de ejecutar el proyecto, asegúrate de tener instalado:
 - Python
 - Virtual Environment (.venv)
 - Uvicorn
+- MySQL Server
+- MySQL Workbench
+
+---
+# 1. Configuración de Base de Datos (MySQL)
+
+Antes de ejecutar el backend, debes crear la base de datos en MySQL Workbench.
+
+### Abrir MySQL Workbench
+Conéctate a tu instancia local de MySQL o al servidor donde tengas acceso.
+
+### Crear base de datos
+Ejecuta la siguiente consulta SQL:
+
+```sql
+CREATE DATABASE gav1;
+```
+
+### Verificar que la base de datos fue creada
+```sql
+SHOW DATABASES;
+```
+
+Debe aparecer la base de datos:
+
+```bash
+gav1
+```
 
 ---
 
-# 1. Ejecutar Backend (Spring Boot)
+# 2. Ejecutar Backend (Spring Boot)
 
 Ubícate en la carpeta raíz del proyecto donde esté almacenado en tu equipo.
 
@@ -31,7 +59,7 @@ Esto iniciará el servidor backend de Spring Boot.
 
 ---
 
-# 2. Ejecutar Frontend (React / Vite)
+# 3. Ejecutar Frontend (React / Vite)
 
 Ubícate en la carpeta del frontend del proyecto.
 
@@ -54,7 +82,7 @@ Esto iniciará la aplicación frontend en modo desarrollo.
 
 ---
 
-# 3. Ejecutar Modelo / API de Optimización (Python)
+# 4. Ejecutar Modelo / API de Optimización (Python)
 
 Ubícate en la carpeta del optimizador/modelo.
 
