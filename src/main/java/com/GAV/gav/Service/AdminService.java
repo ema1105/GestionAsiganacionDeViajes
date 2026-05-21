@@ -472,16 +472,23 @@ public class AdminService {
 
     private ConductorResponse mapToConductorResponse(Conductor c) {
         Automovil auto = c.getAutomovil();
+        var usuario = c.getUsuario();
         return ConductorResponse.builder()
                 .usuarioId(c.getUsuarioId())
-                .nombreCompleto(c.getUsuario().getNombreCompleto())
-                .apellidosCompletos(c.getUsuario().getApellidosCompletos())
-                .email(c.getUsuario().getEmail())
-                .telefono(c.getUsuario().getTelefono())
+                .nombreCompleto(usuario != null ? usuario.getNombreCompleto() : null)
+                .apellidosCompletos(usuario != null ? usuario.getApellidosCompletos() : null)
+                // NUEVOS: campos personales que el panel de edición admin necesita cargar
+                .fechaNacimiento(usuario != null ? usuario.getFechaNacimiento() : null)
+                .tipoDocumento(usuario != null ? usuario.getTipoDocumento() : null)
+                .numeroDocumento(usuario != null ? usuario.getNumeroDocumento() : null)
+                .email(usuario != null ? usuario.getEmail() : null)
+                .telefono(usuario != null ? usuario.getTelefono() : null)
                 .licencia(c.getLicencia())
                 .tipoLicencia(c.getTipoLicencia())
                 .disponibilidad(c.getDisponibilidad())
                 .activo(c.getActivo() == null ? Boolean.TRUE : c.getActivo())
+                // Datos del vehículo aplanados
+                .automovilId(auto != null ? auto.getId() : null)
                 .marcaVehiculo(auto != null ? auto.getMarca() : null)
                 .modeloVehiculo(auto != null ? auto.getModelo() : null)
                 .placaVehiculo(auto != null ? auto.getPlaca() : null)

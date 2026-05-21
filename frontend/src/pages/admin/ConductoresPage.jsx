@@ -80,6 +80,19 @@ function SelectField({ label, value, onChange, options, placeholder, disabled })
   );
 }
 
+// Convierte "2026-05-19T00:00:00..." o "2026-05-19" → "2026-05-19" para input[type=date].
+function toDateInputValue(raw) {
+  if (!raw) return '';
+  if (typeof raw === 'string') return raw.slice(0, 10);
+  try {
+    const d = new Date(raw);
+    if (!Number.isNaN(d.getTime())) {
+      return d.toISOString().slice(0, 10);
+    }
+  } catch { /* noop */ }
+  return '';
+}
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 export default function ConductoresPage() {
   const toast = useToast();
@@ -88,6 +101,7 @@ export default function ConductoresPage() {
   const [loading,    setLoading]    = useState(true);
   const [data,       setData]       = useState([]);
   const [categorias, setCategorias] = useState([]);
+  const [vehiculos,  setVehiculos]  = useState([]);
 
   // Filtros de estado
   const [filtro, setFiltro] = useState('todos');
@@ -110,8 +124,16 @@ export default function ConductoresPage() {
       .finally(() => setLoading(false));
   };
 
+  const cargarVehiculos = () => {
+    adminApi
+      .listarVehiculos()
+      .then((v) => setVehiculos(Array.isArray(v) ? v : (v?.content ?? [])))
+      .catch(() => { /* lista vacía es aceptable */ });
+  };
+
   useEffect(() => {
     cargar();
+    cargarVehiculos();
     adminApi
       .listarCategorias()
       .then((c) => setCategorias(Array.isArray(c) ? c : (c?.content ?? [])));
@@ -206,7 +228,6 @@ export default function ConductoresPage() {
 
       {/* ── Búsqueda avanzada ── */}
       <div className="mb-3 grid gap-3 sm:grid-cols-3">
-        {/* Búsqueda por nombre */}
         <div className="relative">
           <IconSearch
             width={15}
@@ -221,7 +242,6 @@ export default function ConductoresPage() {
           />
         </div>
 
-        {/* Búsqueda por ID */}
         <div className="relative">
           <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[11px] font-bold text-muted">
             ID
@@ -234,7 +254,6 @@ export default function ConductoresPage() {
           />
         </div>
 
-        {/* Búsqueda por placa */}
         <div className="relative">
           <IconCar
             width={15}
@@ -268,14 +287,12 @@ export default function ConductoresPage() {
           ))}
         </div>
 
-        {/* Contador de resultados */}
         <span className="text-sm text-muted">
           {filtrados.length}{' '}
           {filtrados.length === 1 ? 'resultado' : 'resultados'}
           {data.length !== filtrados.length && ` de ${data.length}`}
         </span>
 
-        {/* Botón limpiar filtros */}
         {hayFiltros && (
           <button
             onClick={limpiarFiltros}
@@ -310,7 +327,6 @@ export default function ConductoresPage() {
             const condId    = c.usuarioId ?? c.id;
             const inactivo  = c.activo === false;
 
-            // La API devuelve marcaVehiculo / modeloVehiculo / placaVehiculo directamente
             const vehiculoLabel =
               c.marcaVehiculo
                 ? `${c.marcaVehiculo} ${c.modeloVehiculo ?? ''}`.trim()
@@ -321,11 +337,9 @@ export default function ConductoresPage() {
 
             return (
               <Row key={condId}>
-                {/* ID */}
                 <Cell className="text-[12px] text-muted font-mono">
                   #{condId}
                 </Cell>
-                {/* Conductor */}
                 <Cell>
                   <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-gold/25 bg-gold/10 text-xs font-semibold text-gold">
@@ -399,8 +413,11 @@ export default function ConductoresPage() {
       <ConductorModal
         modal={modal}
         categorias={categorias}
+        vehiculos={vehiculos}
+        conductoresTodos={data}
         onClose={() => setModal(null)}
-        onSaved={() => { setModal(null); cargar(); }}
+        onSaved={() => { setModal(null); cargar(); cargarVehiculos(); }}
+        onVehiculoChange={() => { cargar(); cargarVehiculos(); }}
       />
     </div>
   );
@@ -409,11 +426,10 @@ export default function ConductoresPage() {
 /* ─────────────────────────────────────────────────────────────────────────────
    Modal unificado Conductor + Vehículo
    — Creación: registra conductor y vehículo en una sola llamada al backend
-                (RegisterConductorRequest es transaccional)
-   — Edición:  actualiza campos editables del conductor
+   — Edición:  actualiza TODOS los campos del conductor + permite asignar,
+               quitar o cambiar el vehículo asociado.
 ───────────────────────────────────────────────────────────────────────────── */
 const FORM_INICIAL = {
-  // Usuario
   nombreCompleto:     '',
   apellidosCompletos: '',
   nombreUsuario:      '',
@@ -423,10 +439,8 @@ const FORM_INICIAL = {
   tipoDocumento:      'CC',
   numeroDocumento:    '',
   fechaNacimiento:    '',
-  // Conductor
   licencia:           '',
   tipoLicencia:       'B1',
-  // Vehículo
   marcaVehiculo:      '',
   modeloVehiculo:     '',
   placaVehiculo:      '',
@@ -434,37 +448,88 @@ const FORM_INICIAL = {
   categoriaVehiculoId:'',
 };
 
-function ConductorModal({ modal, categorias, onClose, onSaved }) {
+function ConductorModal({
+  modal, categorias, vehiculos, conductoresTodos,
+  onClose, onSaved, onVehiculoChange,
+}) {
+  // ╔══════════════════════════════════════════════════════════════════════╗
+  // ║  TODOS LOS HOOKS VAN ARRIBA, ANTES DE CUALQUIER EARLY RETURN.         ║
+  // ║  Si se mete un useMemo/useState/useEffect después de `if (!modal)`,   ║
+  // ║  React detecta cambio en el orden/cantidad de hooks entre renders y   ║
+  // ║  lanza "Rendered more hooks than during the previous render" →        ║
+  // ║  la app queda en PANTALLA NEGRA.                                      ║
+  // ╚══════════════════════════════════════════════════════════════════════╝
   const toast   = useToast();
   const editing = modal && modal !== 'crear';
+  const condId  = editing ? (modal.usuarioId ?? modal.id) : null;
 
   const [saving,  setSaving]  = useState(false);
   const [errors,  setErrors]  = useState({});
   const [form,    setForm]    = useState({});
+  const [vehiculoActual,    setVehiculoActual]    = useState(null);
+  const [seleccionVehiculo, setSeleccionVehiculo] = useState('');
+  const [opVehiculoBusy,    setOpVehiculoBusy]    = useState(false);
 
   useEffect(() => {
     setErrors({});
+    setSeleccionVehiculo('');
+    if (!modal) return;
     if (editing) {
       setForm({
-        telefono:     modal.telefono ?? modal.usuario?.telefono ?? '',
-        email:        modal.email    ?? modal.usuario?.email    ?? '',
-        licencia:     modal.licencia     ?? '',
-        tipoLicencia: modal.tipoLicencia ?? 'B1',
+        nombreCompleto:     modal.nombreCompleto     ?? '',
+        apellidosCompletos: modal.apellidosCompletos ?? '',
+        fechaNacimiento:    toDateInputValue(modal.fechaNacimiento),
+        tipoDocumento:      modal.tipoDocumento      ?? 'CC',
+        numeroDocumento:    modal.numeroDocumento    ?? '',
+        email:              modal.email              ?? modal.usuario?.email    ?? '',
+        telefono:           modal.telefono           ?? modal.usuario?.telefono ?? '',
+        contrasena:         '',
+        licencia:           modal.licencia           ?? '',
+        tipoLicencia:       modal.tipoLicencia       ?? 'B1',
       });
+      setVehiculoActual(
+        modal.marcaVehiculo
+          ? {
+              id:        modal.automovilId ?? modal.automovil?.id ?? null,
+              marca:     modal.marcaVehiculo,
+              modelo:    modal.modeloVehiculo,
+              placa:     modal.placaVehiculo,
+              capacidad: modal.capacidadMaxima,
+              categoria: modal.categoriaVehiculo,
+            }
+          : null
+      );
     } else {
       setForm({ ...FORM_INICIAL });
+      setVehiculoActual(null);
     }
   }, [modal, editing]);
+
+  // useMemo ANTES del early return, con guardas null-safe.
+  const vehiculosDisponibles = useMemo(() => {
+    const condList = Array.isArray(conductoresTodos) ? conductoresTodos : [];
+    const vehList  = Array.isArray(vehiculos) ? vehiculos : [];
+    const ocupadosPorOtro = new Set(
+      condList
+        .filter((c) => (c?.usuarioId ?? c?.id) !== condId)
+        .map((c) => c?.automovilId ?? c?.automovil?.id)
+        .filter(Boolean)
+    );
+    return vehList.filter((v) => {
+      if (!v) return false;
+      if (vehiculoActual?.id && v.id === vehiculoActual.id) return false;
+      if (ocupadosPorOtro.has(v.id)) return false;
+      return true;
+    });
+  }, [vehiculos, conductoresTodos, condId, vehiculoActual]);
 
   if (!modal) return null;
 
   const set = (k) => (e) => {
     setForm((f) => ({ ...f, [k]: e.target.value }));
-    // Limpiar error del campo al editar
     if (errors[k]) setErrors((e) => { const c = { ...e }; delete c[k]; return c; });
   };
 
-  // Validación básica en cliente antes de llamar al backend
   const validar = () => {
     const errs = {};
     if (!editing) {
@@ -484,12 +549,20 @@ function ConductorModal({ modal, categorias, onClose, onSaved }) {
       if (!form.capacidadMaxima || Number(form.capacidadMaxima) < 1)
                                               errs.capacidadMaxima   = 'Mínimo 1';
       if (!form.categoriaVehiculoId)         errs.categoriaVehiculoId = 'Requerido';
+    } else {
+      if (!form.nombreCompleto?.trim())     errs.nombreCompleto    = 'Requerido';
+      if (!form.apellidosCompletos?.trim()) errs.apellidosCompletos = 'Requerido';
+      if (form.email && !form.email.includes('@')) errs.email      = 'Correo inválido';
+      if (!form.telefono?.trim())           errs.telefono          = 'Requerido';
+      if (!form.numeroDocumento?.trim())    errs.numeroDocumento   = 'Requerido';
+      if (!form.licencia?.trim())           errs.licencia          = 'Requerido';
+      if (form.contrasena && form.contrasena.length < 6)
+                                             errs.contrasena        = 'Mínimo 6 caracteres';
     }
     return errs;
   };
 
   const guardar = async () => {
-    // Validación cliente
     const errs = validar();
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
@@ -501,18 +574,23 @@ function ConductorModal({ modal, categorias, onClose, onSaved }) {
     setErrors({});
     try {
       if (editing) {
-        // PUT /api/admin/conductores/{id}
-        const payload = {};
-        if (form.telefono)     payload.telefono     = form.telefono;
-        if (form.email)        payload.email        = form.email;
-        if (form.licencia)     payload.licencia     = form.licencia;
-        if (form.tipoLicencia) payload.tipoLicencia = form.tipoLicencia;
-
-        await adminApi.actualizarConductor(modal.usuarioId ?? modal.id, payload);
+        const payload = {
+          nombreCompleto:     form.nombreCompleto.trim(),
+          apellidosCompletos: form.apellidosCompletos.trim(),
+          fechaNacimiento:    form.fechaNacimiento || null,
+          tipoDocumento:      form.tipoDocumento,
+          numeroDocumento:    form.numeroDocumento.trim(),
+          email:              form.email?.trim() || null,
+          telefono:           form.telefono.trim(),
+          licencia:           form.licencia.trim(),
+          tipoLicencia:       form.tipoLicencia,
+        };
+        if (form.contrasena && form.contrasena.length >= 6) {
+          payload.contrasena = form.contrasena;
+        }
+        await adminApi.actualizarConductor(condId, payload);
         toast.success('Conductor actualizado correctamente');
       } else {
-        // POST /api/admin/conductores
-        // El backend crea usuario + vehículo + conductor en una sola transacción
         const payload = {
           nombreCompleto:      form.nombreCompleto.trim(),
           apellidosCompletos:  form.apellidosCompletos.trim(),
@@ -531,18 +609,15 @@ function ConductorModal({ modal, categorias, onClose, onSaved }) {
           capacidadMaxima:     Number(form.capacidadMaxima),
           categoriaVehiculoId: Number(form.categoriaVehiculoId),
         };
-
         await adminApi.crearConductor(payload);
         toast.success('Conductor y vehículo registrados y asociados correctamente');
       }
       onSaved();
     } catch (e) {
-      // El backend puede devolver errores de validación por campo (MethodArgumentNotValidException)
-      const serverMsg = e?.response?.data?.mensaje ?? e?.response?.data?.message ?? e.mensaje;
+      const serverMsg  = e?.response?.data?.mensaje ?? e?.response?.data?.message ?? e.mensaje;
       const serverErrs = e?.response?.data?.errores;
 
       if (serverErrs && typeof serverErrs === 'object') {
-        // Mapear errores de campo del backend a los campos del formulario
         setErrors(serverErrs);
         toast.error('El servidor rechazó algunos campos. Revísalos.');
       } else {
@@ -553,7 +628,55 @@ function ConductorModal({ modal, categorias, onClose, onSaved }) {
     }
   };
 
-  // Helper para mostrar error de campo
+  const quitarVehiculo = async () => {
+    if (!condId) return;
+    setOpVehiculoBusy(true);
+    try {
+      await adminApi.desasociarVehiculo(condId);
+      setVehiculoActual(null);
+      setSeleccionVehiculo('');
+      toast.success('Vehículo desasociado del conductor');
+      onVehiculoChange();
+    } catch (e) {
+      toast.error(e?.response?.data?.mensaje || e.mensaje || 'No se pudo desasociar');
+    } finally {
+      setOpVehiculoBusy(false);
+    }
+  };
+
+  const asignarVehiculo = async () => {
+    if (!condId || !seleccionVehiculo) {
+      toast.error('Selecciona un vehículo primero');
+      return;
+    }
+    setOpVehiculoBusy(true);
+    try {
+      await adminApi.asociarVehiculo(condId, Number(seleccionVehiculo));
+      const v = vehiculos.find((x) => x.id === Number(seleccionVehiculo));
+      if (v) {
+        setVehiculoActual({
+          id:        v.id,
+          marca:     v.marca,
+          modelo:    v.modelo,
+          placa:     v.placa,
+          capacidad: v.capacidadMaxima,
+          categoria: v.categoria?.nombre ?? v.categoriaNombre,
+        });
+      }
+      setSeleccionVehiculo('');
+      toast.success(
+        vehiculoActual
+          ? 'Vehículo cambiado correctamente'
+          : 'Vehículo asignado al conductor'
+      );
+      onVehiculoChange();
+    } catch (e) {
+      toast.error(e?.response?.data?.mensaje || e.mensaje || 'No se pudo asignar el vehículo');
+    } finally {
+      setOpVehiculoBusy(false);
+    }
+  };
+
   const err = (k) =>
     errors[k] ? (
       <span className="mt-1 text-[11px] text-red-400">{errors[k]}</span>
@@ -588,31 +711,32 @@ function ConductorModal({ modal, categorias, onClose, onSaved }) {
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 
-        {/* ── SECCIÓN 1: Conductor ── */}
-        <SectionLabel>Información del Conductor</SectionLabel>
+        {/* ── Datos personales ── */}
+        <SectionLabel>Datos personales</SectionLabel>
+
+        <div className="flex flex-col gap-1">
+          <Input
+            label="Nombres"
+            value={form.nombreCompleto ?? ''}
+            onChange={set('nombreCompleto')}
+            placeholder="Ej: Carlos Andrés"
+            className={errors.nombreCompleto ? 'border-red-500/60' : ''}
+          />
+          {err('nombreCompleto')}
+        </div>
+        <div className="flex flex-col gap-1">
+          <Input
+            label="Apellidos"
+            value={form.apellidosCompletos ?? ''}
+            onChange={set('apellidosCompletos')}
+            placeholder="Ej: Pérez Martínez"
+            className={errors.apellidosCompletos ? 'border-red-500/60' : ''}
+          />
+          {err('apellidosCompletos')}
+        </div>
 
         {!editing && (
           <>
-            <div className="flex flex-col gap-1">
-              <Input
-                label="Nombres"
-                value={form.nombreCompleto ?? ''}
-                onChange={set('nombreCompleto')}
-                placeholder="Ej: Carlos Andrés"
-                className={errors.nombreCompleto ? 'border-red-500/60' : ''}
-              />
-              {err('nombreCompleto')}
-            </div>
-            <div className="flex flex-col gap-1">
-              <Input
-                label="Apellidos"
-                value={form.apellidosCompletos ?? ''}
-                onChange={set('apellidosCompletos')}
-                placeholder="Ej: Pérez Martínez"
-                className={errors.apellidosCompletos ? 'border-red-500/60' : ''}
-              />
-              {err('apellidosCompletos')}
-            </div>
             <div className="flex flex-col gap-1">
               <Input
                 label="Usuario"
@@ -634,47 +758,46 @@ function ConductorModal({ modal, categorias, onClose, onSaved }) {
               />
               {err('contrasena')}
             </div>
-            <div className="flex flex-col gap-1">
-              <Input
-                label="Correo electrónico"
-                type="email"
-                value={form.email ?? ''}
-                onChange={set('email')}
-                placeholder="Ej: conductor@email.com"
-                className={errors.email ? 'border-red-500/60' : ''}
-              />
-              {err('email')}
-            </div>
-            <div className="flex flex-col gap-1">
-              <Input
-                label="Fecha de nacimiento"
-                type="date"
-                value={form.fechaNacimiento ?? ''}
-                onChange={set('fechaNacimiento')}
-                className={errors.fechaNacimiento ? 'border-red-500/60' : ''}
-              />
-              {err('fechaNacimiento')}
-            </div>
-            <SelectField
-              label="Tipo de documento"
-              value={form.tipoDocumento ?? 'CC'}
-              onChange={set('tipoDocumento')}
-              options={DOCUMENTOS}
-            />
-            <div className="flex flex-col gap-1">
-              <Input
-                label="N° de documento"
-                value={form.numeroDocumento ?? ''}
-                onChange={set('numeroDocumento')}
-                placeholder="Ej: 1234567890"
-                className={errors.numeroDocumento ? 'border-red-500/60' : ''}
-              />
-              {err('numeroDocumento')}
-            </div>
           </>
         )}
 
-        {/* Teléfono y licencia — visibles en creación y edición */}
+        <div className="flex flex-col gap-1">
+          <Input
+            label="Fecha de nacimiento"
+            type="date"
+            value={form.fechaNacimiento ?? ''}
+            onChange={set('fechaNacimiento')}
+            className={errors.fechaNacimiento ? 'border-red-500/60' : ''}
+          />
+          {err('fechaNacimiento')}
+        </div>
+        <SelectField
+          label="Tipo de documento"
+          value={form.tipoDocumento ?? 'CC'}
+          onChange={set('tipoDocumento')}
+          options={DOCUMENTOS}
+        />
+        <div className="flex flex-col gap-1">
+          <Input
+            label="N° de documento"
+            value={form.numeroDocumento ?? ''}
+            onChange={set('numeroDocumento')}
+            placeholder="Ej: 1234567890"
+            className={errors.numeroDocumento ? 'border-red-500/60' : ''}
+          />
+          {err('numeroDocumento')}
+        </div>
+        <div className="flex flex-col gap-1">
+          <Input
+            label="Correo electrónico"
+            type="email"
+            value={form.email ?? ''}
+            onChange={set('email')}
+            placeholder="conductor@email.com"
+            className={errors.email ? 'border-red-500/60' : ''}
+          />
+          {err('email')}
+        </div>
         <div className="flex flex-col gap-1">
           <Input
             label="Teléfono"
@@ -685,6 +808,27 @@ function ConductorModal({ modal, categorias, onClose, onSaved }) {
           />
           {err('telefono')}
         </div>
+
+        {editing && (
+          <div className="flex flex-col gap-1 sm:col-span-2">
+            <Input
+              label="Nueva contraseña (opcional)"
+              type="password"
+              value={form.contrasena ?? ''}
+              onChange={set('contrasena')}
+              placeholder="Dejar vacío para no cambiar"
+              className={errors.contrasena ? 'border-red-500/60' : ''}
+            />
+            {err('contrasena')}
+            <p className="text-[11px] text-muted">
+              Solo se actualiza si escribes una nueva (mínimo 6 caracteres).
+            </p>
+          </div>
+        )}
+
+        {/* ── Licencia ── */}
+        <SectionLabel>Licencia</SectionLabel>
+
         <div className="flex flex-col gap-1">
           <Input
             label="N° de licencia"
@@ -702,8 +846,83 @@ function ConductorModal({ modal, categorias, onClose, onSaved }) {
           options={LICENCIAS}
         />
 
-        {/* ── SECCIÓN 2: Vehículo — solo en creación ── */}
-        {!editing && (
+        {/* ── Vehículo ── */}
+        {editing ? (
+          <>
+            <SectionLabel>Vehículo asignado</SectionLabel>
+
+            <div className="col-span-1 sm:col-span-2">
+              {vehiculoActual ? (
+                <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-gold/25 bg-gold/10 text-gold">
+                      <IconCar width={18} height={18} />
+                    </div>
+                    <div className="min-w-0 leading-tight">
+                      <p className="truncate text-sm font-medium text-ink">
+                        {vehiculoActual.marca} {vehiculoActual.modelo}
+                      </p>
+                      <p className="text-[12px] text-muted">
+                        Placa <span className="font-mono text-ink">{vehiculoActual.placa}</span>
+                        {vehiculoActual.capacidad ? ` · ${vehiculoActual.capacidad} pax` : ''}
+                        {vehiculoActual.categoria ? ` · ${vehiculoActual.categoria}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    onClick={quitarVehiculo}
+                    loading={opVehiculoBusy}
+                    className="w-full sm:w-auto"
+                  >
+                    Quitar vehículo
+                  </Button>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-dashed border-line bg-surface/40 p-4 text-center">
+                  <p className="text-sm text-muted">
+                    Este conductor no tiene vehículo asignado.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="col-span-1 sm:col-span-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                <div className="flex-1">
+                  <SelectField
+                    label={vehiculoActual ? 'Cambiar a otro vehículo' : 'Asignar un vehículo'}
+                    value={seleccionVehiculo}
+                    onChange={(e) => setSeleccionVehiculo(e.target.value)}
+                    placeholder={
+                      vehiculosDisponibles.length === 0
+                        ? 'No hay vehículos disponibles…'
+                        : 'Selecciona un vehículo…'
+                    }
+                    disabled={vehiculosDisponibles.length === 0}
+                    options={vehiculosDisponibles.map((v) => ({
+                      value: v.id,
+                      label: `${v.marca ?? ''} ${v.modelo ?? ''} — ${v.placa ?? '—'}`.trim(),
+                    }))}
+                  />
+                </div>
+                <Button
+                  variant="gold"
+                  onClick={asignarVehiculo}
+                  loading={opVehiculoBusy}
+                  disabled={!seleccionVehiculo}
+                  className="w-full sm:w-auto"
+                >
+                  {vehiculoActual ? 'Cambiar' : 'Asignar'}
+                </Button>
+              </div>
+              <p className="mt-1.5 text-[11px] text-muted">
+                Solo se listan vehículos que no estén asignados a otro conductor.
+                Esta acción se aplica de inmediato.
+              </p>
+            </div>
+          </>
+        ) : (
           <>
             <SectionLabel>Información del Vehículo</SectionLabel>
 
@@ -731,9 +950,7 @@ function ConductorModal({ modal, categorias, onClose, onSaved }) {
               <Input
                 label="Placa"
                 value={form.placaVehiculo ?? ''}
-                onChange={(e) => {
-                  set('placaVehiculo')(e);
-                }}
+                onChange={set('placaVehiculo')}
                 placeholder="Ej: ABC-123"
                 className={errors.placaVehiculo ? 'border-red-500/60' : ''}
               />

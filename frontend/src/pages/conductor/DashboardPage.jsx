@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Card from '../../components/ui/Card.jsx';
 import Button from '../../components/ui/Button.jsx';
@@ -12,6 +12,10 @@ import { useToast } from '../../context/ToastContext.jsx';
 import { useRoleGate } from '../../hooks/useRoleGate.js';
 import { ROLES } from '../../constants/roles.js';
 
+// Cuánto tiempo (ms) mantenemos visible el aviso "viaje cancelado por el cliente"
+// antes de limpiarlo automáticamente del panel del conductor.
+const AVISO_CANCEL_MS = 15_000;
+
 export default function ConductorDashboardPage() {
   const toast = useToast();
   // Defensa en profundidad: ningún request de conductor se dispara si el
@@ -23,6 +27,11 @@ export default function ConductorDashboardPage() {
   const [busy, setBusy] = useState(false);
   const [calificar, setCalificar] = useState(null); // viajeId a calificar
   const [vehiculo, setVehiculo] = useState(null);   // datos del vehículo asignado
+  // Aviso temporal cuando el cliente cancela un viaje activo.
+  const [cancelado, setCancelado] = useState(null); // { viajeId } | null
+  // Referencia al último viaje activo conocido para detectar cancelaciones.
+  const activoPrevRef = useRef(null);
+  const avisoTimerRef = useRef(null);
 
   // Carga los datos del vehículo asignado una sola vez al montar.
   useEffect(() => {
@@ -43,14 +52,46 @@ export default function ConductorDashboardPage() {
       .catch(() => {});
   }, [authorized]);
 
+  // Muestra un aviso temporal cuando el cliente cancela un viaje en curso
+  // y dispara un toast inmediato. El aviso se limpia tras AVISO_CANCEL_MS.
+  const mostrarCancelacion = useCallback((viajeId) => {
+    setCancelado({ viajeId });
+    toast.error(`El cliente canceló el viaje #${viajeId}`);
+    if (avisoTimerRef.current) clearTimeout(avisoTimerRef.current);
+    avisoTimerRef.current = setTimeout(
+      () => setCancelado(null),
+      AVISO_CANCEL_MS
+    );
+  }, [toast]);
+
   const refrescar = useCallback(async () => {
     const [a, p] = await Promise.all([
       conductorApi.viajeActivo(),
       conductorApi.solicitudPendiente(),
     ]);
+
+    // Detección de cancelación por cliente:
+    // si teníamos un viaje activo y ahora /viaje-activo no devuelve nada,
+    // consultamos su detalle para saber si pasó a CANCELADO.
+    const prev = activoPrevRef.current;
+    if (prev && !a && prev.id) {
+      const detalle = await conductorApi.detalleViaje(prev.id);
+      if (detalle?.estadoViaje === 'CANCELADO') {
+        mostrarCancelacion(prev.id);
+      }
+    }
+    activoPrevRef.current = a;
+
     setActivo(a);
     setPendiente(p);
     setLoading(false);
+  }, [mostrarCancelacion]);
+
+  // Limpieza del timer al desmontar.
+  useEffect(() => {
+    return () => {
+      if (avisoTimerRef.current) clearTimeout(avisoTimerRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -142,6 +183,27 @@ export default function ConductorDashboardPage() {
               }
             />
             <VehiculoDato etiqueta="Categoría" valor={vehiculo.categoria} />
+          </div>
+        </Card>
+      )}
+
+      {/* Aviso de cancelación reciente por parte del cliente.
+          Refuerza el feedback visual aunque /viaje-activo ya devolvió null. */}
+      {cancelado && (
+        <Card className="mb-6 border-2 border-red-500/40 bg-red-500/5 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <Badge tone="red">Viaje cancelado</Badge>
+              <p className="mt-2 text-ink">
+                El cliente canceló el viaje #{cancelado.viajeId}.
+              </p>
+              <p className="text-sm text-muted">
+                Vuelves al pool FIFO automáticamente. Espera la próxima solicitud.
+              </p>
+            </div>
+            <Button variant="ghost" onClick={() => setCancelado(null)}>
+              Ocultar
+            </Button>
           </div>
         </Card>
       )}

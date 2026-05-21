@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Card from '../../components/ui/Card.jsx';
 import Button from '../../components/ui/Button.jsx';
@@ -44,6 +45,7 @@ const fmtMoney = (n) =>
 
 export default function ClienteDashboardPage() {
   const toast = useToast();
+  const navigate = useNavigate();
   const [tipo, setTipo] = useState('CONFORT');
   const [pasajeros, setPasajeros] = useState(1);
   const [origen, setOrigen] = useState(null); // { lat, lng, label }
@@ -138,6 +140,9 @@ export default function ClienteDashboardPage() {
         duracionMin: distKm * 3,
       });
       toast.success('Viaje solicitado. Buscando conductor...');
+      // Redirección automática al seguimiento: el cliente no debe navegar a mano.
+      // SeguimientoPage hace polling y muestra el estado en tiempo real.
+      navigate('/cliente/seguimiento', { replace: true });
     } catch (e) {
       toast.error(e.mensaje || 'No se pudo solicitar el viaje');
     } finally {

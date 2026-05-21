@@ -15,6 +15,14 @@ export const conductorApi = {
       .then((r) => r.data),
   viajeActivo: () =>
     api.get('/conductor/viaje-activo').then((r) => r.data).catch(() => null),
+  // Detalle expandido de un viaje del conductor (incluye estadoViaje).
+  // Útil para detectar cancelaciones después de que /viaje-activo deje de
+  // devolver el viaje (porque pasó a CANCELADO).
+  detalleViaje: (id) =>
+    api
+      .get(`/conductor/viajes/${id}/detalle`)
+      .then((r) => r.data)
+      .catch(() => null),
   enCamino: (id) =>
     api.post(`/conductor/viajes/${id}/en-camino`).then((r) => r.data),
   iniciar: (id) =>
