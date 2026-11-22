@@ -1,0 +1,7 @@
+{
+  "API_BASE_URL": "http://localhost:8080",
+  "SERVER_OFFSET_HOURS": -5,
+  "MAPS_API_KEY": "AIzaSyBhl-tagF37Z1yyZOB0g-WrmOYjfsMDw1A",
+  "PREDICCION_BASE_URL": "http://localhost:8000",
+  "PREDICCION_API_KEY": ""
+}

@@ -1,0 +1,25 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+.idea/
+.vscode/*
+!.vscode/launch.json
+
+# Entornos con datos reales (dev.json sí se versiona: solo apunta a localhost)
+env/prod.json
+env/*.local.json
+
+# Android / iOS
+android/.gradle/
+android/local.properties
+android/key.properties
+*.jks
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Generated.xcconfig
