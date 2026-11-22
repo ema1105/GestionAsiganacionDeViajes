@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../core/theme/gav_colors.dart';
 import '../../../../core/theme/gav_theme.dart';
 import '../../../../core/ui/gav_widgets.dart';
 import '../../../../core/widgets/state_views.dart';
@@ -44,15 +45,16 @@ class _FlotaPageState extends ConsumerState<FlotaPage> {
           eyebrow: 'GAV · Admin',
           title: 'Flota y clientes',
           onBack: () => context.pop(),
-          trailing: GavIconButton(
-            icon: Icons.add,
-            gold: true,
-            tooltip: 'Agregar',
-            onTap: () => showInfoSnack(
-              context,
-              'El registro de conductores y vehículos se hará desde aquí en la siguiente fase.',
-            ),
-          ),
+          // Solo se registran conductores (con su vehículo) desde el admin;
+          // los clientes crean su cuenta desde la app.
+          trailing: _tab == _Tab.clientes
+              ? null
+              : GavIconButton(
+                  icon: Icons.add,
+                  gold: true,
+                  tooltip: 'Registrar conductor y vehículo',
+                  onTap: () => context.push<bool>('/admin/flota/nuevo'),
+                ),
         ),
         GavSegmented<_Tab>(
           expand: true,
@@ -84,27 +86,127 @@ class _Conductores extends ConsumerWidget {
         onRetry: () => ref.invalidate(conductoresAdminProvider),
         isEmpty: (l) => l.isEmpty,
         empty: const EmptyView(mensaje: 'No hay conductores registrados'),
-        data: (lista) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        data: (lista) {
+          final inactivos = lista.where((c) => !c.activo).length;
+          final activos = lista.length - inactivos;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _Conteo(
+                '$activos conductor${activos == 1 ? '' : 'es'} activo${activos == 1 ? '' : 's'}'
+                '${inactivos > 0 ? ' · $inactivos deshabilitado${inactivos == 1 ? '' : 's'}' : ''}',
+              ),
+              for (final c in lista) _FilaConductor(conductor: c),
+            ],
+          );
+        },
+      );
+}
+
+/// Conductor con acción Deshabilitar / Habilitar
+/// (POST /api/admin/conductores/{id}/deshabilitar | /habilitar).
+class _FilaConductor extends ConsumerStatefulWidget {
+  const _FilaConductor({required this.conductor});
+  final ConductorAdmin conductor;
+
+  @override
+  ConsumerState<_FilaConductor> createState() => _FilaConductorState();
+}
+
+class _FilaConductorState extends ConsumerState<_FilaConductor> {
+  bool _procesando = false;
+
+  Future<void> _cambiarEstado() async {
+    final c = widget.conductor;
+    final deshabilitar = c.activo;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(deshabilitar ? 'Deshabilitar conductor' : 'Habilitar conductor'),
+        content: Text(
+          deshabilitar
+              ? '${c.nombre} dejará de recibir viajes y no podrá iniciar sesión. '
+                  'Su historial, ganancias y reseñas se conservan, y puedes habilitarlo de nuevo cuando quieras.'
+              : '${c.nombre} podrá iniciar sesión y volverá a la cola para recibir viajes.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(d, true),
+            child: Text(deshabilitar ? 'Sí, deshabilitar' : 'Sí, habilitar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+
+    setState(() => _procesando = true);
+    final repo = ref.read(adminRepositoryProvider);
+    try {
+      if (deshabilitar) {
+        await repo.deshabilitarConductor(c.id);
+      } else {
+        await repo.habilitarConductor(c.id);
+      }
+      // Cambia el conteo de disponibles del inicio y la lista de conductores.
+      ref
+        ..invalidate(conductoresAdminProvider)
+        ..invalidate(resumenInicioProvider);
+      if (mounted) {
+        showInfoSnack(context, deshabilitar ? '${c.nombre} fue deshabilitado.' : '${c.nombre} fue habilitado.');
+      }
+    } catch (e) {
+      if (mounted) showErrorSnack(context, e);
+    } finally {
+      if (mounted) setState(() => _procesando = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.conductor;
+    final g = context.gav;
+    return Opacity(
+      opacity: c.activo ? 1 : 0.6,
+      child: _FilaPersona(
+        nombre: c.nombre,
+        detalle: [
+          if ((c.vehiculo ?? '').isNotEmpty) c.vehiculo!,
+          if ((c.placa ?? '').isNotEmpty) c.placa!,
+        ].join(' · ').ifEmpty('Sin vehículo asignado'),
+        extra: c.licencia == null ? null : 'Licencia ${c.licencia}',
+        chip: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            _Conteo('${lista.length} conductor${lista.length == 1 ? '' : 'es'} registrado${lista.length == 1 ? '' : 's'}'),
-            for (final c in lista)
-              _FilaPersona(
-                nombre: c.nombre,
-                detalle: [
-                  if ((c.vehiculo ?? '').isNotEmpty) c.vehiculo!,
-                  if ((c.placa ?? '').isNotEmpty) c.placa!,
-                ].join(' · ').ifEmpty('Sin vehículo asignado'),
-                extra: c.licencia == null ? null : 'Licencia ${c.licencia}',
-                chip: !c.activo
-                    ? const GavChip('Deshabilitado', kind: GavChipKind.danger, upper: false)
-                    : c.disponible
-                        ? const GavChip('Disponible', upper: false)
-                        : const GavChip('En viaje', kind: GavChipKind.success, upper: false),
+            !c.activo
+                ? const GavChip('Deshabilitado', kind: GavChipKind.danger, upper: false)
+                : c.disponible
+                    ? const GavChip('Disponible', upper: false)
+                    : const GavChip('En viaje', kind: GavChipKind.success, upper: false),
+            const SizedBox(width: 6),
+            if (_procesando)
+              const SizedBox.square(
+                dimension: 40,
+                child: Padding(
+                  padding: EdgeInsets.all(11),
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            else
+              IconButton(
+                tooltip: c.activo ? 'Deshabilitar' : 'Habilitar',
+                onPressed: _cambiarEstado,
+                icon: Icon(
+                  c.activo ? Icons.person_off_outlined : Icons.how_to_reg_outlined,
+                  size: 20,
+                  color: c.activo ? g.danger : g.gold,
+                ),
               ),
           ],
         ),
-      );
+      ),
+    );
+  }
 }
 
 class _Vehiculos extends ConsumerWidget {
