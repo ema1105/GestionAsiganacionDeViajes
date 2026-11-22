@@ -1,0 +1,116 @@
+{
+  "generado_en": "2026-11-09T21:37:31+00:00",
+  "modelo": {
+    "nombre": "RNA-MLP demanda mensual GAV",
+    "version": "1.0.0",
+    "mae": 36.37,
+    "rmse": 45.2
+  },
+  "periodo_objetivo": {
+    "desde": "2027-09",
+    "hasta": "2027-10",
+    "etiqueta": "sep 2027 – oct 2027",
+    "solicitudes_predichas": 844,
+    "intervalo": {
+      "min": 733,
+      "max": 954
+    }
+  },
+  "periodo_base": {
+    "desde": "2026-09",
+    "hasta": "2026-10",
+    "etiqueta": "sep 2026 – oct 2026",
+    "solicitudes_reales": 765
+  },
+  "comparacion": {
+    "variacion_absoluta": 79,
+    "variacion_porcentual": 10.33,
+    "tendencia": "incremento"
+  },
+  "otros_meses": [
+    {
+      "periodo": "2027-01",
+      "etiqueta": "ene 2027",
+      "solicitudes_predichas": 617,
+      "solicitudes_reales_base": 558,
+      "en_periodo": false
+    },
+    {
+      "periodo": "2027-02",
+      "etiqueta": "feb 2027",
+      "solicitudes_predichas": 396,
+      "solicitudes_reales_base": 370,
+      "en_periodo": false
+    },
+    {
+      "periodo": "2027-03",
+      "etiqueta": "mar 2027",
+      "solicitudes_predichas": 454,
+      "solicitudes_reales_base": 402,
+      "en_periodo": false
+    },
+    {
+      "periodo": "2027-04",
+      "etiqueta": "abr 2027",
+      "solicitudes_predichas": 462,
+      "solicitudes_reales_base": 419,
+      "en_periodo": false
+    },
+    {
+      "periodo": "2027-05",
+      "etiqueta": "may 2027",
+      "solicitudes_predichas": 358,
+      "solicitudes_reales_base": 349,
+      "en_periodo": false
+    },
+    {
+      "periodo": "2027-06",
+      "etiqueta": "jun 2027",
+      "solicitudes_predichas": 562,
+      "solicitudes_reales_base": 524,
+      "en_periodo": false
+    },
+    {
+      "periodo": "2027-07",
+      "etiqueta": "jul 2027",
+      "solicitudes_predichas": 626,
+      "solicitudes_reales_base": 598,
+      "en_periodo": false
+    },
+    {
+      "periodo": "2027-08",
+      "etiqueta": "ago 2027",
+      "solicitudes_predichas": 442,
+      "solicitudes_reales_base": 430,
+      "en_periodo": false
+    },
+    {
+      "periodo": "2027-09",
+      "etiqueta": "sep 2027",
+      "solicitudes_predichas": 347,
+      "solicitudes_reales_base": 315,
+      "en_periodo": true
+    },
+    {
+      "periodo": "2027-10",
+      "etiqueta": "oct 2027",
+      "solicitudes_predichas": 497,
+      "solicitudes_reales_base": 450,
+      "en_periodo": true
+    },
+    {
+      "periodo": "2027-11",
+      "etiqueta": "nov 2027",
+      "solicitudes_predichas": 395,
+      "solicitudes_reales_base": null,
+      "en_periodo": false
+    },
+    {
+      "periodo": "2027-12",
+      "etiqueta": "dic 2027",
+      "solicitudes_predichas": 663,
+      "solicitudes_reales_base": null,
+      "en_periodo": false
+    }
+  ]
+}

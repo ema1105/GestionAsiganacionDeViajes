@@ -1,0 +1,21 @@
+# Artefactos generados por entrenar.py (no se versionan)
+artefactos/
+reportes/
+
+# Datos locales (exportar de la BD o generar con el script)
+data/viajes.csv
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Variables de entorno (contienen credenciales)
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp

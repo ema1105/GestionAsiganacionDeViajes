@@ -1,0 +1,70 @@
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+### Secretos / claves API — NUNCA commitear ###
+secrets.properties
+src/main/resources/secrets.properties
+**/.env
+frontend/.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.pyc
+
+# Python venv
+.venv/
+
+# Artefactos generados por entrenar.py (no se versionan)
+artefactos/
+reportes/
+
+# Datos locales (exportar de la BD o generar con el script)
+data/viajes.csv
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Variables de entorno (contienen credenciales)
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
