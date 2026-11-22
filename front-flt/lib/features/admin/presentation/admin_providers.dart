@@ -21,6 +21,10 @@ final clientesAdminProvider = FutureProvider.autoDispose<List<ClienteAdmin>>(
   (ref) => ref.watch(adminRepositoryProvider).clientes(),
 );
 
+final categoriasVehiculoProvider = FutureProvider.autoDispose<List<CategoriaVehiculo>>(
+  (ref) => ref.watch(adminRepositoryProvider).categorias(),
+);
+
 final dashboardUrlProvider = FutureProvider.autoDispose<String>(
   (ref) => ref.watch(adminRepositoryProvider).dashboardUrl(),
 );

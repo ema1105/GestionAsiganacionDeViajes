@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../features/admin/presentation/pages/admin_shell.dart';
 import '../features/admin/presentation/pages/dashboard_page.dart';
 import '../features/admin/presentation/pages/flota_page.dart';
+import '../features/admin/presentation/pages/registro_usuario_admin_page.dart';
 import '../features/admin/presentation/pages/historico_page.dart';
 import '../features/admin/presentation/pages/inicio_admin_page.dart';
 import '../features/admin/presentation/pages/perfil_admin_page.dart';
@@ -82,6 +83,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       _ruta('/admin/notificaciones', () => const NotificacionesPage(eyebrow: 'GAV · Admin')),
       _ruta('/admin/flota', FlotaPage.new),
+      _ruta('/admin/flota/nuevo', RegistroUsuarioAdminPage.new),
       _ruta('/admin/viajes', ViajesAdminPage.new),
       _ruta('/admin/dashboard', DashboardPage.new),
       GoRoute(

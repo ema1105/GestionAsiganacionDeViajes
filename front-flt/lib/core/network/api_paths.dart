@@ -32,8 +32,11 @@ abstract final class ApiPaths {
   // Admin
   static const adminPerfil = '/api/admin/perfil';
   static const adminConductores = '/api/admin/conductores';
+  static String adminConductorDeshabilitar(int id) => '/api/admin/conductores/$id/deshabilitar';
+  static String adminConductorHabilitar(int id) => '/api/admin/conductores/$id/habilitar';
   static const adminVehiculos = '/api/admin/vehiculos';
   static const adminClientes = '/api/admin/clientes';
+  static const adminCategorias = '/api/admin/categorias';
   static const adminViajes = '/api/admin/viajes';
   static const adminGananciasDia = '/api/admin/estadisticas/ganancias/dia';
   static const adminGananciasMes = '/api/admin/estadisticas/ganancias/mes';

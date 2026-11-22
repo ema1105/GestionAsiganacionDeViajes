@@ -149,9 +149,9 @@ class VelaMes {
   bool get sube => apertura == null || cierre >= apertura!;
 
   @override
-  bool operator ==(Object o) =>
-      o is VelaMes && o.etiqueta == etiqueta && o.apertura == apertura && o.cierre == cierre &&
-      o.minimo == minimo && o.maximo == maximo;
+  bool operator ==(Object other) =>
+      other is VelaMes && other.etiqueta == etiqueta && other.apertura == apertura && other.cierre == cierre &&
+      other.minimo == minimo && other.maximo == maximo;
 
   @override
   int get hashCode => Object.hash(etiqueta, apertura, cierre, minimo, maximo);

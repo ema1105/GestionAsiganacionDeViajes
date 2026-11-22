@@ -6,6 +6,7 @@ import '../../../core/json/json_read.dart';
 import '../../../core/network/api_paths.dart';
 import '../../../core/network/dio_provider.dart';
 import '../../../core/pagination/pagina.dart';
+import '../../auth/domain/auth_repository.dart' show RegistroCliente;
 import '../../viajes_cliente/data/dtos/viaje_dto.dart';
 import '../../viajes_cliente/domain/entities/estado_viaje.dart';
 import '../../viajes_cliente/domain/entities/viaje.dart';
@@ -125,6 +126,57 @@ class PerfilUsuario {
   String get nombreCompleto => '$nombre $apellidos'.trim();
 }
 
+/// Categoría de vehículo (`GET /api/admin/categorias`): CONFORT, PREMIUM, XL…
+class CategoriaVehiculo {
+  const CategoriaVehiculo({required this.id, required this.nombre, this.descripcion});
+
+  factory CategoriaVehiculo.fromJson(Map<String, dynamic> j) => CategoriaVehiculo(
+        id: asInt(j['id']) ?? 0,
+        nombre: asString(j['nombre']) ?? '',
+        descripcion: asString(j['descripcion']),
+      );
+
+  final int id;
+  final String nombre;
+  final String? descripcion;
+}
+
+/// Cuerpo de `POST /api/admin/conductores` (`RegisterConductorRequest`).
+/// El backend crea usuario + vehículo + conductor en una sola transacción.
+class NuevoConductor {
+  const NuevoConductor({
+    required this.usuario,
+    required this.licencia,
+    required this.tipoLicencia,
+    required this.marcaVehiculo,
+    required this.modeloVehiculo,
+    required this.placaVehiculo,
+    required this.capacidadMaxima,
+    required this.categoriaVehiculoId,
+  });
+
+  /// Datos personales y de acceso (mismos campos que el registro de cliente).
+  final RegistroCliente usuario;
+  final String licencia;
+  final String tipoLicencia;
+  final String marcaVehiculo;
+  final String modeloVehiculo;
+  final String placaVehiculo;
+  final int capacidadMaxima;
+  final int categoriaVehiculoId;
+
+  Map<String, dynamic> toJson() => {
+        ...usuario.toJson(),
+        'licencia': licencia.trim(),
+        'tipoLicencia': tipoLicencia,
+        'marcaVehiculo': marcaVehiculo.trim(),
+        'modeloVehiculo': modeloVehiculo.trim(),
+        'placaVehiculo': placaVehiculo.trim().toUpperCase(),
+        'capacidadMaxima': capacidadMaxima,
+        'categoriaVehiculoId': categoriaVehiculoId,
+      };
+}
+
 /// Viajes de un día (`ViajesPorDiaResponse`).
 class ViajesDia {
   const ViajesDia(this.fecha, this.cantidad);
@@ -165,11 +217,32 @@ class AdminRepository {
   Future<List<ConductorAdmin>> conductores() => guard(() async =>
       (await _list(ApiPaths.adminConductores, {'incluirInactivos': true})).map(ConductorAdmin.fromJson).toList());
 
+  /// Borrado lógico del backend: el conductor sale de la cola de asignación,
+  /// no puede iniciar sesión y conserva su historial. `id` = usuarioId.
+  Future<ConductorAdmin> deshabilitarConductor(int id) => guard(() async {
+        final res = await _dio.post<Map<String, dynamic>>(ApiPaths.adminConductorDeshabilitar(id));
+        return ConductorAdmin.fromJson(res.data ?? const {});
+      });
+
+  /// Lo devuelve a la cola de asignación (activo y disponible).
+  Future<ConductorAdmin> habilitarConductor(int id) => guard(() async {
+        final res = await _dio.post<Map<String, dynamic>>(ApiPaths.adminConductorHabilitar(id));
+        return ConductorAdmin.fromJson(res.data ?? const {});
+      });
+
   Future<List<VehiculoAdmin>> vehiculos() =>
       guard(() async => (await _list(ApiPaths.adminVehiculos)).map(VehiculoAdmin.fromJson).toList());
 
   Future<List<ClienteAdmin>> clientes() =>
       guard(() async => (await _list(ApiPaths.adminClientes)).map(ClienteAdmin.fromJson).toList());
+
+  Future<List<CategoriaVehiculo>> categorias() => guard(() async =>
+      (await _list(ApiPaths.adminCategorias)).map(CategoriaVehiculo.fromJson).toList());
+
+  Future<ConductorAdmin> registrarConductor(NuevoConductor datos) => guard(() async {
+        final res = await _dio.post<Map<String, dynamic>>(ApiPaths.adminConductores, data: datos.toJson());
+        return ConductorAdmin.fromJson(res.data ?? const {});
+      });
 
   Future<Pagina<Viaje>> viajes({EstadoViaje? estado, int page = 0, int size = 5}) => guard(() async {
         final json = await _map(ApiPaths.adminViajes, {
