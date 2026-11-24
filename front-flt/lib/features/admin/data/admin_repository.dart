@@ -46,6 +46,72 @@ class ConductorAdmin {
   final String? licencia;
 }
 
+/// Espejo de `FlotaUbicacionResponse`: un conductor conectado en "Flota en vivo".
+class ConductorEnVivo {
+  const ConductorEnVivo({
+    required this.id,
+    required this.nombre,
+    required this.lat,
+    required this.lng,
+    required this.enViaje,
+    this.vehiculo,
+    this.placa,
+    this.ultimaSenal,
+    this.viajeId,
+    this.viajeEstado,
+    this.origenNombre,
+    this.destinoNombre,
+    this.origen,
+    this.destino,
+  });
+
+  factory ConductorEnVivo.fromJson(Map<String, dynamic> j) {
+    Coordenada? punto(String lat, String lng) {
+      final a = asDouble(j[lat]), b = asDouble(j[lng]);
+      return a == null || b == null ? null : Coordenada(a, b);
+    }
+
+    return ConductorEnVivo(
+      id: asInt(j['conductorId']) ?? 0,
+      nombre: asString(j['nombre']) ?? 'Conductor',
+      vehiculo: asString(j['vehiculo']),
+      placa: asString(j['placa']),
+      lat: asDouble(j['lat']) ?? 0,
+      lng: asDouble(j['lng']) ?? 0,
+      ultimaSenal: asServerDateTime(j['ultimaSenal']),
+      enViaje: asString(j['estado']) == 'EN_VIAJE',
+      viajeId: asInt(j['viajeId']),
+      viajeEstado: j['viajeEstado'] == null ? null : EstadoViaje.fromApi(asString(j['viajeEstado'])),
+      origenNombre: asString(j['origenNombre']),
+      destinoNombre: asString(j['destinoNombre']),
+      origen: punto('origenLat', 'origenLng'),
+      destino: punto('destinoLat', 'destinoLng'),
+    );
+  }
+
+  final int id;
+  final String nombre;
+  final String? vehiculo;
+  final String? placa;
+  final double lat;
+  final double lng;
+  final DateTime? ultimaSenal;
+  final bool enViaje;
+  final int? viajeId;
+  final EstadoViaje? viajeEstado;
+  final String? origenNombre;
+  final String? destinoNombre;
+  final Coordenada? origen;
+  final Coordenada? destino;
+
+  /// A dónde va ahora: al punto de recogida antes de iniciar; al destino durante el viaje.
+  Coordenada? get objetivo => !enViaje ? null : (viajeEstado == EstadoViaje.enCurso ? destino : origen);
+
+  /// Segundos desde la última señal GPS.
+  int? get segundosSinSenal =>
+      ultimaSenal == null ? null : DateTime.now().difference(ultimaSenal!).inSeconds.clamp(0, 9999);
+}
+
 /// Espejo de `VehiculoResponse`.
 class VehiculoAdmin {
   const VehiculoAdmin({
@@ -268,6 +334,10 @@ class AdminRepository {
                 ))
             .toList();
       });
+
+  /// GET /api/admin/flota/ubicaciones: conductores conectados y su última posición.
+  Future<List<ConductorEnVivo>> flotaEnVivo() => guard(() async =>
+      (await _list(ApiPaths.adminFlotaUbicaciones)).map(ConductorEnVivo.fromJson).toList());
 
   Future<String> dashboardUrl() =>
       guard(() async => asString((await _map(ApiPaths.adminDashboardUrl))['url']) ?? '');

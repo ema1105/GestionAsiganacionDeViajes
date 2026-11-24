@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/admin/presentation/pages/admin_shell.dart';
 import '../features/admin/presentation/pages/dashboard_page.dart';
+import '../features/admin/presentation/pages/flota_en_vivo_page.dart';
 import '../features/admin/presentation/pages/flota_page.dart';
 import '../features/admin/presentation/pages/registro_usuario_admin_page.dart';
 import '../features/admin/presentation/pages/historico_page.dart';
@@ -79,6 +80,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         branches: [
           _rama('/admin', InicioAdminPage.new),
           _rama('/admin/prediccion', PrediccionPage.new),
+          _rama('/admin/flota-en-vivo', FlotaEnVivoPage.new),
           _rama('/admin/historico', HistoricoPage.new),
           _rama('/admin/perfil', PerfilAdminPage.new),
         ],

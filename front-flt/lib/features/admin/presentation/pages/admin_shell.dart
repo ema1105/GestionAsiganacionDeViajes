@@ -3,7 +3,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/ui/gav_widgets.dart';
 
-/// Contenedor con la barra inferior del admin: Inicio · Predicción · Histórico · Perfil.
+/// Contenedor con la barra inferior del admin: Inicio · Predicción · Flota · Histórico · Perfil.
 class AdminShell extends StatelessWidget {
   const AdminShell({super.key, required this.shell});
   final StatefulNavigationShell shell;
@@ -11,6 +11,7 @@ class AdminShell extends StatelessWidget {
   static const items = [
     GavNavItem(Icons.home_outlined, 'Inicio'),
     GavNavItem(Icons.bar_chart_rounded, 'Predicción'),
+    GavNavItem(Icons.location_on_outlined, 'Flota'),
     GavNavItem(Icons.history, 'Histórico'),
     GavNavItem(Icons.person_outline, 'Perfil'),
   ];

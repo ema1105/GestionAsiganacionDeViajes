@@ -17,7 +17,9 @@ String _claveRuta(LatLng a, LatLng b, {int decimales = 5}) =>
     '${a.latitude.toStringAsFixed(decimales)},${a.longitude.toStringAsFixed(decimales)}'
     '>${b.latitude.toStringAsFixed(decimales)},${b.longitude.toStringAsFixed(decimales)}';
 
-Future<RutaCalculada?> _rutaCacheada(LatLng a, LatLng b, {int decimales = 5}) async {
+/// Ruta por calles a → b con caché. [decimales] redondea la clave (3 ≈ 100 m) para
+/// no recalcular por pequeños movimientos del GPS. null si no hay Directions (móvil).
+Future<RutaCalculada?> rutaPorCallesCacheada(LatLng a, LatLng b, {int decimales = 5}) async {
   final k = _claveRuta(a, b, decimales: decimales);
   final cache = _cacheRutas[k];
   if (cache != null) return cache;
@@ -95,7 +97,7 @@ class _GavMapaState extends State<GavMapa> {
       if (_rutaAuto != null && mounted) setState(() => _rutaAuto = null);
       return;
     }
-    final r = await _rutaCacheada(o, d);
+    final r = await rutaPorCallesCacheada(o, d);
     if (!mounted || widget.origen != o || widget.destino != d) return;
     setState(() => _rutaAuto = r?.puntos);
     widget.onRuta?.call(r);
@@ -109,7 +111,7 @@ class _GavMapaState extends State<GavMapa> {
       if (_rutaTramo != null && mounted) setState(() => _rutaTramo = null);
       return;
     }
-    final r = await _rutaCacheada(c, h, decimales: 3);
+    final r = await rutaPorCallesCacheada(c, h, decimales: 3);
     if (!mounted || widget.conductor != c || widget.tramoConductorHasta != h) return;
     setState(() => _rutaTramo = r?.puntos);
     widget.onTramoConductor?.call(r);
@@ -217,7 +219,7 @@ class _GavMapaState extends State<GavMapa> {
 
           return GoogleMap(
             initialCameraPosition: CameraPosition(target: _puntos.isEmpty ? _cartagena : _puntos.first, zoom: 13),
-            style: oscuro ? _estiloOscuro : null,
+            style: oscuro ? estiloMapaOscuro : null,
             markers: markers,
             polylines: {
               if (trazado.length >= 2)
@@ -277,8 +279,8 @@ class _SinMapa extends StatelessWidget {
       );
 }
 
-/// Estilo oscuro acorde al tema GAV.
-const _estiloOscuro = '''
+/// Estilo oscuro acorde al tema GAV (también lo usa el mapa "Flota en vivo").
+const estiloMapaOscuro = '''
 [
   {"elementType":"geometry","stylers":[{"color":"#1c1c1b"}]},
   {"elementType":"labels.text.fill","stylers":[{"color":"#9c9891"}]},

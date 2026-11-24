@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/error/app_failure.dart';
 import '../../../core/pagination/pagina.dart';
 import '../../viajes_cliente/domain/entities/estado_viaje.dart';
 import '../../viajes_cliente/domain/entities/viaje.dart';
@@ -91,3 +92,24 @@ final viajesAdminProvider = FutureProvider.autoDispose.family<Pagina<Viaje>, Con
       .watch(adminRepositoryProvider)
       .viajes(estado: q.estado, page: q.page, size: tamanoPaginaViajesAdmin),
 );
+
+/// Foto de la flota en vivo: conductores conectados + hora de la consulta.
+class FlotaSnapshot {
+  const FlotaSnapshot(this.conductores, this.recibidoEn);
+  final List<ConductorEnVivo> conductores;
+  final DateTime recibidoEn;
+}
+
+/// Cada 10 s consulta /api/admin/flota/ubicaciones mientras la pestaña "Flota" está abierta.
+/// Errores de red transitorios no cortan el polling: se reintenta en el siguiente ciclo.
+final flotaEnVivoProvider = StreamProvider.autoDispose<FlotaSnapshot>((ref) async* {
+  final repo = ref.watch(adminRepositoryProvider);
+  while (true) {
+    try {
+      yield FlotaSnapshot(await repo.flotaEnVivo(), DateTime.now());
+    } on AppFailure catch (f) {
+      if (!f.isRetryable) rethrow;
+    }
+    await Future<void>.delayed(const Duration(seconds: 10));
+  }
+});

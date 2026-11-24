@@ -45,6 +45,7 @@ abstract final class ApiPaths {
   static const adminViajesDia = '/api/admin/estadisticas/viajes/dia';
   static const adminViajesPorDia = '/api/admin/estadisticas/viajes/por-dia';
   static const adminDashboardUrl = '/api/admin/dashboard/url';
+  static const adminFlotaUbicaciones = '/api/admin/flota/ubicaciones';
 
   // Notificaciones (cualquier rol autenticado)
   static const notificacionesMias = '/api/notificaciones/mias';
