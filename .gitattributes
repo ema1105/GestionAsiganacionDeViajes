@@ -1,2 +1,10 @@
 /mvnw text eol=lf
 *.cmd text eol=crlf
+
+# Archivos que se ejecutan o leen en Linux (VM, Cloud Shell, contenedores): siempre LF
+*.sh text eol=lf
+deploy/.env.example text eol=lf
+deploy/Caddyfile text eol=lf
+deploy/*.yml text eol=lf
+Dockerfile text eol=lf
+**/Dockerfile text eol=lf

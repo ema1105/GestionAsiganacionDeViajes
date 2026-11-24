@@ -139,7 +139,7 @@ cat > /tmp/gav-cloud-init.sh <<'CLOUDINIT'
 set -e
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
-apt-get install -y docker.io docker-compose-v2 git mysql-client htop
+apt-get install -y docker.io docker-compose-v2 docker-buildx git mysql-client htop
 systemctl enable --now docker
 usermod -aG docker azureuser
 timedatectl set-timezone America/Bogota

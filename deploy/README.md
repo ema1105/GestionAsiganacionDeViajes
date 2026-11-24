@@ -44,7 +44,7 @@ Para la app móvil contra este backend local (celular en la misma red Wi-Fi o ho
 2. DuckDNS: `gav-app` y `gav-pred` -> IP de la VM.
 3. En la VM:
    ```bash
-   git clone https://github.com/ema1105/GestionAsiganacionDeViajes.git gav
+   git clone -b Backend https://github.com/ema1105/GestionAsiganacionDeViajes.git gav
    cd gav/deploy && cp .env.example .env && nano .env
    docker compose up -d --build
    ```
