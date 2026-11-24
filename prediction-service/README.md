@@ -140,7 +140,11 @@ Si no se define, el servicio queda abierto. Esto es útil si Flutter pasa por el
 
 Dos opciones:
 
-1. **Sin reiniciar**: `POST /api/prediccion/reentrenar` (con el header de autenticación si aplica). El servicio sigue respondiendo con el modelo anterior mientras entrena; al terminar, recarga automáticamente.
+1. **Desde la app (admin → Demanda mensual → Modelo predictivo)** o por API, sin reiniciar:
+   - `POST /api/prediccion/reentrenar` → responde **202** de inmediato y entrena en segundo plano.
+   - `GET /api/prediccion/reentrenar/estado` → `estado` (`inactivo` | `entrenando` | `completado` | `error`), `paso`, `log`, `metricas_anteriores`, `metricas_nuevas`, `metricas_actuales`, `hay_respaldo`.
+   - `POST /api/prediccion/modelo/restaurar` → vuelve al modelo anterior (se respalda en `artefactos_respaldo/` antes de cada entrenamiento).
+   El servicio sigue respondiendo con el modelo anterior mientras entrena; si el entrenamiento falla, se conserva el anterior.
 2. **Manual**: ejecutar `python entrenar.py` y reiniciar el servicio.
 
 ### Docker

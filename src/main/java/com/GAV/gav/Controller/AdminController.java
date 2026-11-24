@@ -225,3 +225,4 @@ public class AdminController {
         return ResponseEntity.ok(java.util.Map.of("url", powerBiUrl));
     }
 }
+

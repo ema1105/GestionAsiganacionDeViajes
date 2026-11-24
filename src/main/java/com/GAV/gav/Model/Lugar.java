@@ -35,10 +35,10 @@ public class Lugar {
     @Column(name = "etiquetas", length = 500)
     private String etiquetas;
 
-    @Column(name = "lat")
+    @Column(name = "lat", precision = 10, scale = 7)
     private BigDecimal lat;
 
-    @Column(name = "lng")
+    @Column(name = "lng", precision = 10, scale = 7)
     private BigDecimal lng;
 
     // Radio en metros para considerar que un destino "cae" en este lugar.

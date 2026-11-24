@@ -20,10 +20,10 @@ public class UbicacionConductor {
     @JoinColumn(name = "conductor_id")
     private Conductor conductor;
 
-    @Column(name = "lat")
+    @Column(name = "lat", precision = 10, scale = 7)
     private BigDecimal lat;
 
-    @Column(name = "lng")
+    @Column(name = "lng", precision = 10, scale = 7)
     private BigDecimal lng;
 
     @Column(name = "fecha")

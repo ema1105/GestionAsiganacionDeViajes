@@ -19,10 +19,10 @@ public class SeguimientoViaje {
     @JoinColumn(name = "viaje_id")
     private Viaje viaje;
 
-    @Column(name = "lat")
+    @Column(name = "lat", precision = 10, scale = 7)
     private BigDecimal lat;
 
-    @Column(name = "lng")
+    @Column(name = "lng", precision = 10, scale = 7)
     private BigDecimal lng;
 
     @Column(name = "fecha")

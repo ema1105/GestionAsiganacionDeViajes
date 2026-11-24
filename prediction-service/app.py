@@ -5,11 +5,16 @@ Docs interactivas: http://localhost:8000/docs
 """
 from __future__ import annotations
 
-import asyncio
+import contextlib
+import io
+import json
 import logging
+import shutil
+import threading
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
@@ -54,7 +59,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -98,35 +103,118 @@ def salud():
     return {"estado": "ok" if "predictor" in estado else "sin_modelo"}
 
 
-# ───────────────────────────────── Reentrenamiento sin reiniciar ──
+# ───────────────────────────────── Reentrenamiento desde la app (admin) ──
+#
+# Flujo para Flutter:
+#   1. POST /api/prediccion/reentrenar          → 202 inmediato (entrena en segundo plano)
+#   2. GET  /api/prediccion/reentrenar/estado   → consultar cada pocos segundos
+#   3. (opcional) POST /api/prediccion/modelo/restaurar → volver al modelo anterior
+#
+# Mientras entrena, el servicio sigue respondiendo con el modelo anterior.
+# Antes de entrenar se guarda una copia de los artefactos en artefactos_respaldo/.
 
-@app.post("/api/prediccion/reentrenar",
-          summary="Reentrena el modelo con los datos actuales y recarga",
-          dependencies=[Depends(verificar_api_key)])
-async def reentrenar(request: Request):
-    """Ejecuta entrenar.py en un hilo aparte y recarga el Predictor.
+_RESPALDO_DIR = config.ARTEFACTOS_DIR.parent / f"{config.ARTEFACTOS_DIR.name}_respaldo"
+_lock = threading.Lock()
+_job: dict = {"estado": "inactivo"}
 
-    Mientras entrena, el servicio sigue respondiendo con el modelo anterior.
-    """
-    if estado.get("entrenando"):
-        raise HTTPException(409, "Ya hay un entrenamiento en curso.")
-    estado["entrenando"] = True
+
+def _ahora() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _metricas_actuales() -> dict | None:
+    """Métricas del modelo guardado en disco (o None si no hay)."""
+    ruta = config.ARTEFACTOS_DIR / "metadata.json"
+    if not ruta.exists():
+        return None
+    meta = json.loads(ruta.read_text(encoding="utf-8"))
+    return {"version": meta.get("version"), "entrenado_en": meta.get("entrenado_en"),
+            "ultimo_mes_real": meta.get("ultimo_mes_real"),
+            "muestras_entrenamiento": meta.get("muestras_entrenamiento"),
+            **(meta.get("metricas") or {})}
+
+
+class _Progreso(io.TextIOBase):
+    """Captura los print() de entrenar.py para mostrarlos como progreso en la app."""
+
+    def write(self, s: str) -> int:
+        for linea in s.splitlines():
+            if linea.strip():
+                _job["paso"] = linea.strip()
+                _job.setdefault("log", []).append(linea.rstrip())
+                _job["log"] = _job["log"][-40:]
+        return len(s)
+
+
+def _ejecutar_entrenamiento() -> None:
+    import importlib
+
+    import entrenar as modulo_entrenar
+
+    hubo_respaldo = False
     try:
-        # entrenar.py es un script pesado → correr en hilo para no bloquear
-        def _entrenar():
-            import importlib
-            import entrenar as modulo_entrenar
-            importlib.reload(modulo_entrenar)  # por si cambió algo en config
+        if config.ARTEFACTOS_DIR.exists():
+            if _RESPALDO_DIR.exists():
+                shutil.rmtree(_RESPALDO_DIR)
+            shutil.copytree(config.ARTEFACTOS_DIR, _RESPALDO_DIR)
+            hubo_respaldo = True
+
+        importlib.reload(modulo_entrenar)  # por si cambió algo en config
+        with contextlib.redirect_stdout(_Progreso()):
             modulo_entrenar.main()
 
-        await asyncio.to_thread(_entrenar)
-
-        # Recargar el predictor con los artefactos recién generados
         estado["predictor"] = Predictor.desde_artefactos()
+        _job.update(estado="completado", finalizado_en=_ahora(),
+                    metricas_nuevas=_metricas_actuales(),
+                    mensaje="Modelo reentrenado y cargado. Ya se usa en las predicciones.")
         logger.info("Modelo reentrenado y recargado.")
-        return {"resultado": "ok", "mensaje": "Modelo reentrenado y recargado."}
-    except Exception as e:
+    except BaseException as e:  # SystemExit de entrenar.py (pocos datos) incluido
         logger.exception("Error durante el reentrenamiento.")
-        raise HTTPException(500, f"Error al reentrenar: {e}") from e
+        # Si se alcanzaron a borrar los artefactos, se restaura el modelo anterior.
+        if hubo_respaldo:
+            if config.ARTEFACTOS_DIR.exists():
+                shutil.rmtree(config.ARTEFACTOS_DIR)
+            shutil.copytree(_RESPALDO_DIR, config.ARTEFACTOS_DIR)
+        _job.update(estado="error", finalizado_en=_ahora(),
+                    mensaje=f"No se pudo reentrenar: {str(e).rstrip('.')}. Se conserva el modelo anterior.")
     finally:
-        estado["entrenando"] = False
+        _job["hay_respaldo"] = _RESPALDO_DIR.exists()
+
+
+@app.post("/api/prediccion/reentrenar", status_code=202,
+          summary="Inicia el reentrenamiento en segundo plano",
+          dependencies=[Depends(verificar_api_key)])
+def reentrenar():
+    with _lock:
+        if _job.get("estado") == "entrenando":
+            raise HTTPException(409, "Ya hay un entrenamiento en curso.")
+        _job.clear()
+        _job.update(estado="entrenando", iniciado_en=_ahora(), paso="Iniciando…", log=[],
+                    metricas_anteriores=_metricas_actuales())
+    threading.Thread(target=_ejecutar_entrenamiento, daemon=True, name="reentrenar").start()
+    return estado_reentrenamiento()
+
+
+@app.get("/api/prediccion/reentrenar/estado",
+         summary="Progreso del último reentrenamiento",
+         dependencies=[Depends(verificar_api_key)])
+def estado_reentrenamiento():
+    return {**_job, "hay_respaldo": _RESPALDO_DIR.exists(),
+            "metricas_actuales": _metricas_actuales()}
+
+
+@app.post("/api/prediccion/modelo/restaurar",
+          summary="Vuelve al modelo anterior al último reentrenamiento",
+          dependencies=[Depends(verificar_api_key)])
+def restaurar_modelo():
+    if _job.get("estado") == "entrenando":
+        raise HTTPException(409, "Espera a que termine el entrenamiento en curso.")
+    if not _RESPALDO_DIR.exists():
+        raise HTTPException(404, "No hay un modelo anterior para restaurar.")
+    if config.ARTEFACTOS_DIR.exists():
+        shutil.rmtree(config.ARTEFACTOS_DIR)
+    shutil.move(str(_RESPALDO_DIR), str(config.ARTEFACTOS_DIR))
+    estado["predictor"] = Predictor.desde_artefactos()
+    _job.clear()
+    _job.update(estado="inactivo", mensaje="Se restauró el modelo anterior.")
+    return estado_reentrenamiento()

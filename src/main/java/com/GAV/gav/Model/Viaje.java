@@ -15,16 +15,16 @@ public class Viaje {
     @Column(name = "cantidadPasajeros")
     private int cantidadPasajeros;
 
-    @Column(name = "origenLat")
+    @Column(name = "origenLat", precision = 10, scale = 7)
     private BigDecimal origenLat;
 
-    @Column(name = "origenLng")
+    @Column(name = "origenLng", precision = 10, scale = 7)
     private BigDecimal origenLng;
 
-    @Column(name = "destinoLat")
+    @Column(name = "destinoLat", precision = 10, scale = 7)
     private BigDecimal destinoLat;
 
-    @Column(name = "destinoLng")
+    @Column(name = "destinoLng", precision = 10, scale = 7)
     private BigDecimal destinoLng;
 
     public enum EstadoViaje {

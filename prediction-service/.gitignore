@@ -1,5 +1,6 @@
 # Artefactos generados por entrenar.py (no se versionan)
 artefactos/
+artefactos_respaldo/
 reportes/
 
 # Datos locales (exportar de la BD o generar con el script)
