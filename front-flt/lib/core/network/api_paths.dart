@@ -23,6 +23,8 @@ abstract final class ApiPaths {
   static String conductorFinalizar(int id) => '/api/conductor/viajes/$id/finalizar';
   static const conductorPerfil = '/api/conductor/perfil';
   static String conductorSeguimiento(int id) => '/api/conductor/viajes/$id/seguimiento';
+  static String conductorDetalleViaje(int id) => '/api/conductor/viajes/$id/detalle';
+  static String conductorCalificarCliente(int id) => '/api/conductor/viajes/$id/calificar-cliente';
   static const conductorViajes = '/api/conductor/viajes';
   static const conductorGananciasDia = '/api/conductor/estadisticas/ganancias/dia';
   static const conductorGananciasMes = '/api/conductor/estadisticas/ganancias/mes';

@@ -33,6 +33,9 @@ class ViajesClienteRepositoryImpl implements ViajesClienteRepository {
   Future<void> cancelar(int viajeId) => guard(() => _remote.cancelar(viajeId));
 
   @override
+  Future<Viaje> obtener(int viajeId) => guard(() async => (await _remote.obtener(viajeId)).toEntity());
+
+  @override
   Stream<PuntoSeguimiento?> seguirViaje(int viajeId) async* {
     while (true) {
       try {

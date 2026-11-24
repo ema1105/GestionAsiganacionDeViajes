@@ -92,6 +92,24 @@ class Calificacion {
   final int? viajeId;
 }
 
+/// Contacto del cliente (parte de `ViajeDetalleConductorResponse`).
+class ContactoCliente {
+  const ContactoCliente({required this.nombre, this.telefono, this.email});
+
+  factory ContactoCliente.fromJson(Map<String, dynamic> j) => ContactoCliente(
+        nombre: [asString(j['clienteNombre']), asString(j['clienteApellidos'])]
+            .whereType<String>()
+            .where((s) => s.trim().isNotEmpty)
+            .join(' '),
+        telefono: asString(j['clienteTelefono']),
+        email: asString(j['clienteEmail']),
+      );
+
+  final String nombre;
+  final String? telefono;
+  final String? email;
+}
+
 /// Espejo de `PromedioCalificacionResponse`.
 class PromedioCalificacion {
   const PromedioCalificacion({required this.promedio, required this.total});

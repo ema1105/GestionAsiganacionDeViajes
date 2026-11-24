@@ -125,21 +125,39 @@ class _SolicitarViajePageState extends ConsumerState<SolicitarViajePage> {
       return;
     }
     final cerca = Lugares.cercano(pos.latitude, pos.longitude);
+    final provisional = Lugar(
+      cerca != null ? 'Mi ubicación (cerca de ${cerca.corto})' : 'Mi ubicación',
+      'Mi ubicación',
+      'OTRO',
+      pos.latitude,
+      pos.longitude,
+    );
     setState(() {
       _ubicando = false;
-      _origen = Lugar(
-        cerca != null ? 'Mi ubicación (cerca de ${cerca.corto})' : 'Mi ubicación',
-        'Mi ubicación',
-        'OTRO',
-        pos.latitude,
-        pos.longitude,
-      );
+      _origen = provisional;
     });
-    await _recalcular();
+    unawaited(_recalcular());
+
+    // En vez de guardar "Mi ubicación", se guarda el nombre real del sitio:
+    // el lugar del catálogo si está cerca, o la calle/dirección (Geocoding API).
+    final nombre = cerca?.nombre ?? await _nombreDeCalle(pos.latitude, pos.longitude);
+    if (!mounted || nombre == null || !identical(_origen, provisional)) return;
+    setState(() => _origen = Lugar(nombre, cerca?.corto ?? nombre, 'OTRO', pos.latitude, pos.longitude));
+  }
+
+  Future<String?> _nombreDeCalle(double lat, double lng) async {
+    await mapsListos;
+    final direccion = await direccionDe(lat, lng);
+    return direccion == null ? null : acortarDireccion(direccion);
   }
 
   Future<void> _solicitar() async {
-    final o = _origen;
+    var o = _origen;
+    // Si el cliente solicita antes de que termine la geocodificación, se resuelve aquí.
+    if (o != null && o.corto == 'Mi ubicación') {
+      final nombre = await _nombreDeCalle(o.lat, o.lng);
+      if (nombre != null) o = Lugar(nombre, nombre, 'OTRO', o.lat, o.lng);
+    }
     final d = _destino;
     if (o == null || d == null) {
       setState(() => _error = 'Elige el origen y el destino.');
@@ -197,6 +215,7 @@ class _SolicitarViajePageState extends ConsumerState<SolicitarViajePage> {
           origen: o == null ? null : LatLng(o.lat, o.lng),
           destino: d == null ? null : LatLng(d.lat, d.lng),
           ruta: _rutaCalles?.puntos,
+          rutaAutomatica: false, // esta pantalla ya calcula la ruta en _recalcular()
           onTap: _elegirEnMapa,
         ),
         if (Env.tieneMapa)

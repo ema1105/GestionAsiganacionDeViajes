@@ -82,4 +82,11 @@ abstract interface class ConductorRepository {
   Future<Pagina<Calificacion>> calificaciones({int page = 0, int size = 20});
 
   Future<PromedioCalificacion> promedio();
+
+  /// Datos de contacto del cliente de un viaje (GET /api/conductor/viajes/{id}/detalle).
+  Future<ContactoCliente> contactoCliente(int viajeId);
+
+  /// El conductor califica al cliente de un viaje FINALIZADO
+  /// (POST /api/conductor/viajes/{id}/calificar-cliente).
+  Future<void> calificarCliente(int viajeId, {required int puntuacion, String? comentario});
 }

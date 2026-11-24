@@ -156,6 +156,18 @@ class ConductorRepositoryImpl implements ConductorRepository {
   @override
   Future<PromedioCalificacion> promedio() => guard(() async =>
       PromedioCalificacion.fromJson(await _remote.getMap(ApiPaths.conductorCalificacionesPromedio)));
+
+  @override
+  Future<ContactoCliente> contactoCliente(int viajeId) => guard(() async =>
+      ContactoCliente.fromJson(await _remote.getMap(ApiPaths.conductorDetalleViaje(viajeId))));
+
+  @override
+  Future<void> calificarCliente(int viajeId, {required int puntuacion, String? comentario}) => guard(
+        () => _remote.postVoid(ApiPaths.conductorCalificarCliente(viajeId), {
+          'puntuacion': puntuacion,
+          if ((comentario ?? '').trim().isNotEmpty) 'comentario': comentario!.trim(),
+        }),
+      );
 }
 
 final conductorRepositoryProvider = Provider<ConductorRepository>(

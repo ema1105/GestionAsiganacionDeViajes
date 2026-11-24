@@ -21,9 +21,11 @@ import '../features/conductor/presentation/pages/historial_conductor_page.dart';
 import '../features/conductor/presentation/pages/panel_page.dart';
 import '../features/conductor/presentation/pages/perfil_conductor_page.dart';
 import '../features/conductor/presentation/pages/resenas_page.dart';
+import '../features/conductor/presentation/pages/viaje_conductor_page.dart';
 import '../features/notificaciones/presentation/notificaciones_page.dart';
 import '../features/prediccion/domain/periodo.dart';
 import '../features/prediccion/presentation/pages/detalle_periodo_page.dart';
+import '../features/prediccion/presentation/pages/modelo_predictivo_page.dart';
 import '../features/prediccion/presentation/pages/prediccion_page.dart';
 import '../features/viajes_cliente/presentation/pages/asistente_page.dart';
 import '../features/viajes_cliente/presentation/pages/cliente_shell.dart';
@@ -86,6 +88,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       _ruta('/admin/flota/nuevo', RegistroUsuarioAdminPage.new),
       _ruta('/admin/viajes', ViajesAdminPage.new),
       _ruta('/admin/dashboard', DashboardPage.new),
+      _ruta('/admin/prediccion/modelo', ModeloPredictivoPage.new),
       GoRoute(
         path: '/admin/prediccion/detalle',
         builder: (_, st) => DetallePeriodoPage(periodo: Periodo.tryParse(st.uri.queryParameters['periodo'])),
@@ -96,6 +99,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _, shell) => ConductorShell(shell: shell),
         branches: [
           _rama('/conductor', PanelConductorPage.new),
+          _rama('/conductor/viaje', ViajeConductorPage.new),
           _rama('/conductor/historial', HistorialConductorPage.new),
           _rama('/conductor/ganancias', GananciasPage.new),
           _rama('/conductor/resenas', ResenasPage.new),

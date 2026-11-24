@@ -1,3 +1,4 @@
+import 'entrenamiento.dart';
 import 'periodo.dart';
 import 'prediccion.dart';
 
@@ -9,4 +10,9 @@ abstract interface class PrediccionRepository {
 
   /// No requiere API key: sirve para el indicador de conexión.
   Future<EstadoServicio> salud();
+
+  /// Reentrenamiento del modelo desde la app (solo admin).
+  Future<EstadoEntrenamiento> reentrenar();
+  Future<EstadoEntrenamiento> estadoReentrenamiento();
+  Future<EstadoEntrenamiento> restaurarModeloAnterior();
 }

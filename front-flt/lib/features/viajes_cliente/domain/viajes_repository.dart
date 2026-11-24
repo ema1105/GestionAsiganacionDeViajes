@@ -9,6 +9,9 @@ abstract interface class ViajesClienteRepository {
 
   Future<void> cancelar(int viajeId);
 
+  /// Un viaje puntual del cliente (para saber si ya terminó).
+  Future<Viaje> obtener(int viajeId);
+
   /// Última posición del conductor durante el viaje.
   /// Hoy es polling; cuando exista WebSocket solo cambia la implementación.
   Stream<PuntoSeguimiento?> seguirViaje(int viajeId);

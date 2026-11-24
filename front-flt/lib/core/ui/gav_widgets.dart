@@ -305,10 +305,16 @@ class GavIconButton extends StatelessWidget {
 
 /// Card KPI ("PREDICCIÓN OCT 2027 · 574", "GANANCIA DEL DÍA · $45.000").
 class GavKpiCard extends StatelessWidget {
-  const GavKpiCard({super.key, required this.label, required this.value, this.valueColor});
+  const GavKpiCard({super.key, required this.label, required this.value, this.valueColor, this.icon, this.iconColor});
   final String label;
   final String value;
   final Color? valueColor;
+
+  /// Ícono opcional antes del valor (p. ej. estrella de calificación).
+  /// Usar esto en vez de símbolos como "★" dentro del texto: la fuente del KPI no
+  /// los tiene, el navegador usa una fuente de respaldo más alta y la tarjeta desborda.
+  final IconData? icon;
+  final Color? iconColor;
 
   @override
   Widget build(BuildContext context) => GavCard(
@@ -321,7 +327,16 @@ class GavKpiCard extends StatelessWidget {
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
-              child: Text(value, style: GavText.kpi(context, color: valueColor)),
+              child: icon == null
+                  ? Text(value, style: GavText.kpi(context, color: valueColor))
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(icon, size: 26, color: iconColor ?? context.gav.gold),
+                        const SizedBox(width: 6),
+                        Text(value, style: GavText.kpi(context, color: valueColor)),
+                      ],
+                    ),
             ),
           ],
         ),

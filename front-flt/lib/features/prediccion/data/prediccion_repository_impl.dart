@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/prediccion_dio.dart';
+import '../domain/entrenamiento.dart';
 import '../domain/periodo.dart';
 import '../domain/prediccion.dart';
 import '../domain/prediccion_repository.dart';
@@ -25,6 +26,18 @@ class PrediccionRepositoryImpl implements PrediccionRepository {
         final estado = await _remote.salud();
         return estado == 'ok' ? EstadoServicio.ok : EstadoServicio.sinModelo;
       });
+
+  @override
+  Future<EstadoEntrenamiento> reentrenar() =>
+      guardPrediccion(() async => EstadoEntrenamiento.fromJson(await _remote.reentrenar()));
+
+  @override
+  Future<EstadoEntrenamiento> estadoReentrenamiento() =>
+      guardPrediccion(() async => EstadoEntrenamiento.fromJson(await _remote.estadoReentrenamiento()));
+
+  @override
+  Future<EstadoEntrenamiento> restaurarModeloAnterior() =>
+      guardPrediccion(() async => EstadoEntrenamiento.fromJson(await _remote.restaurar()));
 }
 
 final prediccionRepositoryProvider = Provider<PrediccionRepository>(

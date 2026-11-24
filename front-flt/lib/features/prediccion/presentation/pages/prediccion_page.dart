@@ -33,13 +33,47 @@ class PrediccionPage extends ConsumerWidget {
       children: [
         GavTopBar(
           title: 'Demanda mensual',
-          trailing: GavIconButton(
-            icon: Icons.refresh,
-            tooltip: 'Actualizar',
-            onTap: () => refrescar(ref),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GavIconButton(
+                icon: Icons.model_training,
+                tooltip: 'Entrenar modelo',
+                onTap: () => context.push('/admin/prediccion/modelo'),
+              ),
+              const SizedBox(width: 8),
+              GavIconButton(
+                icon: Icons.refresh,
+                tooltip: 'Actualizar',
+                onTap: () => refrescar(ref),
+              ),
+            ],
           ),
         ),
         const EstadoConexionPrediccion(),
+        GavCard(
+          padding: const EdgeInsets.all(14),
+          child: InkWell(
+            onTap: () => context.push('/admin/prediccion/modelo'),
+            child: Row(
+              children: [
+                const GavIconBox(icon: Icons.model_training, size: 38),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Modelo predictivo', style: GavText.strong(context, size: 14)),
+                      Text('Reentrenar con los viajes actuales y ver sus métricas',
+                          style: GavText.muted(context, size: 12)),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right),
+              ],
+            ),
+          ),
+        ),
         AsyncValueView<FichaModelo>(
           value: ficha,
           onRetry: () => refrescar(ref),

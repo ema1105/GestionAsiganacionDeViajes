@@ -7,6 +7,25 @@ import '../config/env.dart';
 import '../theme/gav_colors.dart';
 import '../theme/gav_theme.dart';
 import 'maps_plataforma.dart';
+import 'ruta_calculada.dart';
+
+/// Caché de rutas por calles (clave = coordenadas redondeadas) para no repetir
+/// llamadas a Directions cada vez que el polling reconstruye el mapa.
+final Map<String, RutaCalculada> _cacheRutas = {};
+
+String _claveRuta(LatLng a, LatLng b, {int decimales = 5}) =>
+    '${a.latitude.toStringAsFixed(decimales)},${a.longitude.toStringAsFixed(decimales)}'
+    '>${b.latitude.toStringAsFixed(decimales)},${b.longitude.toStringAsFixed(decimales)}';
+
+Future<RutaCalculada?> _rutaCacheada(LatLng a, LatLng b, {int decimales = 5}) async {
+  final k = _claveRuta(a, b, decimales: decimales);
+  final cache = _cacheRutas[k];
+  if (cache != null) return cache;
+  if (!await mapsListos) return null;
+  final r = await calcularRutaPorCalles(a.latitude, a.longitude, b.latitude, b.longitude);
+  if (r != null) _cacheRutas[k] = r; // los fallos no se guardan: se reintenta luego
+  return r;
+}
 
 /// Carga única de Google Maps para toda la app.
 final Future<bool> mapsListos = cargarGoogleMaps(Env.tieneMapa ? Env.mapsApiKey : '');
@@ -22,14 +41,31 @@ class GavMapa extends StatefulWidget {
     this.ruta,
     this.height = 220,
     this.onTap,
+    this.rutaAutomatica = true,
+    this.tramoConductorHasta,
+    this.onTramoConductor,
+    this.onRuta,
   });
 
   final LatLng? origen;
   final LatLng? destino;
   final LatLng? conductor;
 
-  /// Trazado por calles; si es null se dibuja una línea recta origen → destino.
+  /// Trazado por calles ya calculado. Si es null y [rutaAutomatica] es true, el mapa
+  /// calcula la ruta real origen → destino (Directions/Routes); si no hay ruta
+  /// disponible, dibuja una línea recta punteada.
   final List<LatLng>? ruta;
+  final bool rutaAutomatica;
+
+  /// Si se indica junto con [conductor], se traza también la ruta por calles
+  /// conductor → este punto (p. ej. conductor → punto de recogida).
+  final LatLng? tramoConductorHasta;
+
+  /// Distancia/tiempo reales del tramo conductor → [tramoConductorHasta].
+  final ValueChanged<RutaCalculada?>? onTramoConductor;
+
+  /// Distancia/tiempo reales de la ruta origen → destino calculada automáticamente.
+  final ValueChanged<RutaCalculada?>? onRuta;
   final double height;
 
   /// Si se indica, el usuario puede tocar el mapa para elegir un punto (p. ej. el destino).
@@ -41,8 +77,43 @@ class GavMapa extends StatefulWidget {
 
 class _GavMapaState extends State<GavMapa> {
   GoogleMapController? _controller;
+  List<LatLng>? _rutaAuto;
+  List<LatLng>? _rutaTramo;
 
   static const _cartagena = LatLng(10.4236, -75.5300);
+
+  @override
+  void initState() {
+    super.initState();
+    _calcularRuta();
+    _calcularTramo();
+  }
+
+  Future<void> _calcularRuta() async {
+    final o = widget.origen, d = widget.destino;
+    if (widget.ruta != null || !widget.rutaAutomatica || o == null || d == null) {
+      if (_rutaAuto != null && mounted) setState(() => _rutaAuto = null);
+      return;
+    }
+    final r = await _rutaCacheada(o, d);
+    if (!mounted || widget.origen != o || widget.destino != d) return;
+    setState(() => _rutaAuto = r?.puntos);
+    widget.onRuta?.call(r);
+  }
+
+  /// Tramo conductor → objetivo. Se redondea a 3 decimales (~100 m) para no
+  /// recalcular con cada pequeño movimiento del GPS.
+  Future<void> _calcularTramo() async {
+    final c = widget.conductor, h = widget.tramoConductorHasta;
+    if (c == null || h == null) {
+      if (_rutaTramo != null && mounted) setState(() => _rutaTramo = null);
+      return;
+    }
+    final r = await _rutaCacheada(c, h, decimales: 3);
+    if (!mounted || widget.conductor != c || widget.tramoConductorHasta != h) return;
+    setState(() => _rutaTramo = r?.puntos);
+    widget.onTramoConductor?.call(r);
+  }
 
   List<LatLng> get _puntos => [
         ?widget.origen,
@@ -57,6 +128,12 @@ class _GavMapaState extends State<GavMapa> {
         oldWidget.destino != widget.destino ||
         oldWidget.conductor != widget.conductor;
     if (cambio) _encuadrar();
+    if (oldWidget.origen != widget.origen || oldWidget.destino != widget.destino || oldWidget.ruta != widget.ruta) {
+      _calcularRuta();
+    }
+    if (oldWidget.conductor != widget.conductor || oldWidget.tramoConductorHasta != widget.tramoConductorHasta) {
+      _calcularTramo();
+    }
   }
 
   @override
@@ -134,7 +211,9 @@ class _GavMapaState extends State<GavMapa> {
                 infoWindow: const InfoWindow(title: 'Conductor'),
               ),
           };
-          final trazado = widget.ruta ?? (o != null && d != null ? [o, d] : const <LatLng>[]);
+          final real = widget.ruta ?? _rutaAuto;
+          final trazado = real ?? (o != null && d != null ? [o, d] : const <LatLng>[]);
+          final tramo = _rutaTramo;
 
           return GoogleMap(
             initialCameraPosition: CameraPosition(target: _puntos.isEmpty ? _cartagena : _puntos.first, zoom: 13),
@@ -146,8 +225,15 @@ class _GavMapaState extends State<GavMapa> {
                   polylineId: const PolylineId('ruta'),
                   points: trazado,
                   color: g.gold,
-                  width: widget.ruta == null ? 3 : 5,
-                  patterns: widget.ruta == null ? [PatternItem.dash(14), PatternItem.gap(10)] : const [],
+                  width: real == null ? 3 : 5,
+                  patterns: real == null ? [PatternItem.dash(14), PatternItem.gap(10)] : const [],
+                ),
+              if (tramo != null && tramo.length >= 2)
+                Polyline(
+                  polylineId: const PolylineId('tramo_conductor'),
+                  points: tramo,
+                  color: const Color(0xFF4FA3E0),
+                  width: 4,
                 ),
             },
             zoomControlsEnabled: false,

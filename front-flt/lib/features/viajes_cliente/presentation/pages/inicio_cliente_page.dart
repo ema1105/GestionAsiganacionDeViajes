@@ -66,9 +66,10 @@ class InicioClientePage extends ConsumerWidget {
               GavKpiCard(label: 'Viajes realizados', value: '${r.viajesFinalizados}'),
               GavKpiCard(
                 label: 'Mi calificación',
+                icon: r.promedio.promedio == null ? null : Icons.star_rounded,
                 value: r.promedio.promedio == null
                     ? '—'
-                    : '★ ${r.promedio.promedio!.toStringAsFixed(1).replaceAll('.', ',')}',
+                    : r.promedio.promedio!.toStringAsFixed(1).replaceAll('.', ','),
               ),
             ],
           ),

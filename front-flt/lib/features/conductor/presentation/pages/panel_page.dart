@@ -19,6 +19,7 @@ import '../../domain/conductor_models.dart';
 import '../../domain/solicitud_pendiente.dart';
 import '../controllers/conductor_providers.dart';
 import '../controllers/rastreo_conductor.dart';
+import '../widgets/acciones_viaje.dart';
 
 /// Mockup conductor 02 · Panel.
 class PanelConductorPage extends ConsumerWidget {
@@ -250,15 +251,9 @@ class _ViajeActivoCardState extends ConsumerState<_ViajeActivoCard> {
 
   Future<void> _ejecutar(AccionConductor accion) async {
     setState(() => _enviando = true);
-    try {
-      await ref.read(conductorRepositoryProvider).ejecutar(accion, widget.viaje.id);
-      ref.invalidate(viajeActivoConductorProvider);
-      if (accion == AccionConductor.finalizar) ref.invalidate(resumenGananciasProvider);
-    } catch (e) {
-      if (mounted) showErrorSnack(context, e);
-    } finally {
-      if (mounted) setState(() => _enviando = false);
-    }
+    // Mismo flujo que la pestaña "Viaje": confirma, ejecuta y, al finalizar, abre la calificación del cliente.
+    await ejecutarAccionConductor(context, ref, accion, widget.viaje);
+    if (mounted) setState(() => _enviando = false);
   }
 
   @override
@@ -301,8 +296,16 @@ class _ViajeActivoCardState extends ConsumerState<_ViajeActivoCard> {
             destino: LatLng(v.destino.lat, v.destino.lng),
             conductor: _miPosicion(ref),
           ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () => context.go('/conductor/viaje'),
+              icon: const Icon(Icons.open_in_full, size: 16),
+              label: const Text('Ver detalle del viaje'),
+            ),
+          ),
           if (accion != null) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 4),
             GavButton(
               label: _enviando ? 'Enviando…' : accion.etiqueta,
               kind: GavButtonKind.gold,

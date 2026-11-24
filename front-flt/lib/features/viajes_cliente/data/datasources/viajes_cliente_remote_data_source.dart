@@ -40,6 +40,11 @@ class ViajesClienteRemoteDataSource {
 
   Future<void> cancelar(int viajeId) => _dio.post<void>(ApiPaths.clienteCancelar(viajeId));
 
+  Future<ViajeDto> obtener(int viajeId) async {
+    final res = await _dio.get<Map<String, dynamic>>(ApiPaths.clienteViaje(viajeId));
+    return ViajeDto.fromJson(res.data!);
+  }
+
   /// 204 cuando el viaje aún no tiene puntos GPS → null (no es error).
   Future<PuntoSeguimientoDto?> ultimoPunto(int viajeId) async {
     final res = await _dio.get<dynamic>(ApiPaths.clienteUltimoPunto(viajeId));

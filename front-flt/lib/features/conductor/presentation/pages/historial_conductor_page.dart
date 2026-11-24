@@ -3,13 +3,16 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/lugares/ruta_viaje.dart';
 import '../../../../core/pagination/pagina.dart';
+import '../../../../core/theme/gav_colors.dart';
 import '../../../../core/theme/gav_theme.dart';
 import '../../../../core/ui/formatos.dart';
 import '../../../../core/ui/gav_widgets.dart';
 import '../../../../core/widgets/state_views.dart';
+import '../../../viajes_cliente/domain/entities/estado_viaje.dart';
 import '../../../viajes_cliente/domain/entities/viaje.dart';
 import '../../../viajes_cliente/presentation/widgets/viaje_widgets.dart';
 import '../controllers/conductor_providers.dart';
+import '../widgets/acciones_viaje.dart';
 
 /// Mockup conductor 04 · Historial.
 class HistorialConductorPage extends ConsumerStatefulWidget {
@@ -61,7 +64,13 @@ class _HistorialConductorPageState extends ConsumerState<HistorialConductorPage>
             final totalPaginas = (p.totalElements / tamanoPaginaHistorial).ceil();
             return Column(
               children: [
-                for (final v in p.items) ViajeResumenCard(viaje: v),
+                for (final v in p.items)
+                  ViajeResumenCard(
+                    viaje: v,
+                    onCalificar: v.estado == EstadoViaje.finalizado
+                        ? () => mostrarCalificarCliente(context, v)
+                        : null,
+                  ),
                 GavPaginationFooter(
                   text: 'Mostrando ${p.items.length} de ${p.totalElements} viajes · '
                       'página ${p.page + 1} de ${totalPaginas == 0 ? 1 : totalPaginas}',
@@ -79,9 +88,12 @@ class _HistorialConductorPageState extends ConsumerState<HistorialConductorPage>
 
 /// Card de viaje del historial: "Viaje #12 · Cliente   $22.000 / fecha / chip".
 class ViajeResumenCard extends StatelessWidget {
-  const ViajeResumenCard({super.key, required this.viaje, this.subtitulo});
+  const ViajeResumenCard({super.key, required this.viaje, this.subtitulo, this.onCalificar});
   final Viaje viaje;
   final String? subtitulo;
+
+  /// Si se indica, muestra "Calificar cliente" (viajes finalizados).
+  final VoidCallback? onCalificar;
 
   @override
   Widget build(BuildContext context) => GavCard(
@@ -107,7 +119,26 @@ class ViajeResumenCard extends StatelessWidget {
               style: GavText.muted(context, size: 12),
             ),
             const SizedBox(height: 10),
-            EstadoViajeChip(viaje.estado),
+            Row(
+              children: [
+                EstadoViajeChip(viaje.estado),
+                const Spacer(),
+                if (onCalificar != null)
+                  GestureDetector(
+                    onTap: onCalificar,
+                    child: Row(
+                      children: [
+                        Icon(Icons.star_border_rounded, size: 16, color: context.gav.gold),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Calificar cliente',
+                          style: GavText.strong(context, size: 12.5).copyWith(color: context.gav.gold),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
           ],
         ),
       );
