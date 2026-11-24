@@ -1,0 +1,15 @@
+# Contexto de build del backend: solo pom.xml y src/ son necesarios.
+.git
+.idea
+.vscode
+target
+frontend
+prediction-service
+deploy
+optimizer.zip
+*.md
+*.svg
+# Secretos locales: NUNCA dentro de la imagen
+secrets.properties
+src/main/resources/secrets.properties
+**/.env

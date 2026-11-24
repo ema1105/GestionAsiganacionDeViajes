@@ -1,0 +1,53 @@
+{
+  "nombre": "RNA-MLP demanda mensual GAV",
+  "version": "1.0.0",
+  "entrenado_en": "2026-11-22T21:12:43+00:00",
+  "origen_serie": "2021-01",
+  "ultimo_mes_real": "2026-10",
+  "estados_usados": [
+    "cancelado",
+    "finalizado"
+  ],
+  "variables_entrada": [
+    "crec_mes",
+    "crec_trimestre",
+    "mes_sin",
+    "mes_cos"
+  ],
+  "arquitectura": {
+    "tipo": "Perceptrón multicapa (ensamble)",
+    "capas_ocultas": [
+      8,
+      4
+    ],
+    "activacion": "tanh",
+    "salida": "1 neurona lineal: ln(factor de crecimiento vs mismo mes año anterior)",
+    "redes_en_ensamble": 10,
+    "optimizador": "Adam (lr=0.005)",
+    "regularizacion_l2": 0.01,
+    "epocas_promedio": 68.2
+  },
+  "muestras_entrenamiento": 44,
+  "metricas": {
+    "mae": 16.4,
+    "rmse": 20.85,
+    "mape": 2.36
+  },
+  "comparativo_backtest": {
+    "mismo_mes_anio_anterior": {
+      "mae": 38.92,
+      "rmse": 42.53,
+      "mape": 5.46
+    },
+    "crecimiento_promedio": {
+      "mae": 13.21,
+      "rmse": 18.24,
+      "mape": 1.91
+    },
+    "mejora_mae_rna_vs_mismo_mes_pct": 57.9
+  },
+  "periodo_backtest": [
+    "2024-11",
+    "2026-10"
+  ]
+}

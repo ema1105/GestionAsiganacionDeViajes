@@ -47,8 +47,11 @@ __pycache__/
 # Python venv
 .venv/
 
-# Artefactos generados por entrenar.py (no se versionan)
+# Artefactos generados por entrenar.py: se versiona SOLO el modelo del
+# prediction-service (el despliegue lo necesita); respaldos y reportes no.
 artefactos/
+!prediction-service/artefactos/
+artefactos_respaldo/
 reportes/
 
 # Datos locales (exportar de la BD o generar con el script)
@@ -68,3 +71,8 @@ __pycache__/
 .idea/
 .vscode/
 *.swp
+
+### Despliegue ###
+deploy/.env
+deploy/web/*
+!deploy/web/LEEME.txt

@@ -1,0 +1,28 @@
+# Caddy obtiene y renueva solo los certificados HTTPS (Let's Encrypt).
+# Requisitos: los dominios apuntan a la IP de la VM y los puertos 80/443 están abiertos.
+{
+	email {$ACME_EMAIL}
+}
+
+# Dominio principal: API de Spring Boot + la web (Flutter Web) en el mismo origen
+{$APP_DOMAIN} {
+	encode zstd gzip
+
+	@backend path /api/* /swagger-ui* /v3/api-docs* /actuator*
+	handle @backend {
+		reverse_proxy backend:8080
+	}
+
+	# Todo lo demás: la app Flutter Web (SPA)
+	handle {
+		root * /srv/web
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+# prediction-service (FastAPI): lo consumen la app móvil y la web
+{$PRED_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy prediction:8000
+}

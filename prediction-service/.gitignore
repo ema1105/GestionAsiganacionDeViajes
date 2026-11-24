@@ -1,5 +1,5 @@
 # Artefactos generados por entrenar.py (no se versionan)
-artefactos/
+# artefactos/  -> AHORA SE VERSIONA: el despliegue necesita el modelo entrenado (~320 KB)
 artefactos_respaldo/
 reportes/
 

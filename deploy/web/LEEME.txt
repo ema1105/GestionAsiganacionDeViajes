@@ -1,0 +1,3 @@
+Aquí va el build de Flutter Web (contenido de front-flt/build/web/).
+En el PC:  flutter build web --release --dart-define-from-file=env/prod.json
+Luego copiar build/web/* a esta carpeta en el servidor (scp). Ver deploy/README.md.

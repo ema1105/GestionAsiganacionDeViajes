@@ -1,0 +1,88 @@
+# GAV — despliegue en la VM de Azure (o cualquier servidor con Docker).
+#   cd deploy && cp .env.example .env && nano .env
+#   docker compose up -d --build
+# Servicios: backend (Spring Boot), prediction (FastAPI + RNA), caddy (HTTPS + Flutter Web).
+# MySQL NO corre aquí: es Azure Database for MySQL (DB_HOST en .env).
+
+name: gav
+
+services:
+  backend:
+    build:
+      context: ..                    # raíz del repo (pom.xml + src/)
+    image: gav-backend:latest
+    container_name: gav-backend
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: "jdbc:mysql://${DB_HOST}:3306/${DB_NAME}?sslMode=REQUIRED&serverTimezone=UTC&characterEncoding=UTF-8"
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      CHATBOT_API_KEY: ${CHATBOT_API_KEY:-}
+      ADMIN_SEED_PASSWORD: ${ADMIN_SEED_PASSWORD}
+      CORS_ALLOWED_ORIGINS: "https://${APP_DOMAIN}"
+      JAVA_TOOL_OPTIONS: "-Xms256m -Xmx${BACKEND_HEAP:-768m} -XX:MaxMetaspaceSize=192m -XX:+UseSerialGC"
+      TZ: America/Bogota
+    expose:
+      - "8080"
+    mem_limit: ${BACKEND_MEM_LIMIT:-1200m}
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  prediction:
+    build:
+      context: ../prediction-service
+    image: gav-prediction:latest
+    container_name: gav-prediction
+    restart: unless-stopped
+    environment:
+      # Solo se usa al reentrenar (lee la tabla viaje). TLS con los certificados del sistema.
+      GAV_DB_URL: "mysql+pymysql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:3306/${DB_NAME}?ssl_ca=/etc/ssl/certs/ca-certificates.crt"
+      GAV_API_KEY: ${PREDICCION_API_KEY:-}
+      TZ: America/Bogota
+    volumes:
+      - pred_artefactos:/app/artefactos              # el modelo sobrevive a rebuilds y reentrenamientos
+      - pred_respaldo:/app/artefactos_respaldo
+    expose:
+      - "8000"
+    mem_limit: ${PREDICTION_MEM_LIMIT:-1800m}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/prediccion/salud', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    logging: *logging
+
+  caddy:
+    image: caddy:2
+    container_name: gav-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN}
+      PRED_DOMAIN: ${PRED_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./web:/srv/web:ro                            # build de Flutter Web (flutter build web)
+      - caddy_data:/data                             # certificados: NO borrar
+      - caddy_config:/config
+    depends_on:
+      - backend
+      - prediction
+    mem_limit: 128m
+    logging: *logging
+
+volumes:
+  caddy_data:
+  caddy_config:
+  pred_artefactos:
+  pred_respaldo:
