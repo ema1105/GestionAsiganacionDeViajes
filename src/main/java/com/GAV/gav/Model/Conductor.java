@@ -1,6 +1,7 @@
 package com.GAV.gav.Model;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -52,6 +53,33 @@ public class Conductor {
     // Nullable para no romper registros preexistentes; el código trata NULL como true.
     @Column(name = "activo")
     private Boolean activo = true;
+
+    // Última señal de vida de la app del conductor (polling de solicitudes o GPS).
+    // El FIFO solo ofrece viajes a conductores con señal reciente (conectados);
+    // así no se pierden 30 s por cada conductor que tiene la app cerrada.
+    @Column(name = "ultimaConexion")
+    private LocalDateTime ultimaConexion;
+
+    // Última posición GPS reportada (copia de la última fila de ubicacion_conductor).
+    // Permite que el mapa "Flota en vivo" lea una fila por conductor.
+    @Column(name = "ultimaLat", precision = 10, scale = 7)
+    private BigDecimal ultimaLat;
+
+    @Column(name = "ultimaLng", precision = 10, scale = 7)
+    private BigDecimal ultimaLng;
+
+    @Column(name = "ultimaUbicacionEn")
+    private LocalDateTime ultimaUbicacionEn;
+
+    public BigDecimal getUltimaLat() { return ultimaLat; }
+    public void setUltimaLat(BigDecimal ultimaLat) { this.ultimaLat = ultimaLat; }
+    public BigDecimal getUltimaLng() { return ultimaLng; }
+    public void setUltimaLng(BigDecimal ultimaLng) { this.ultimaLng = ultimaLng; }
+    public LocalDateTime getUltimaUbicacionEn() { return ultimaUbicacionEn; }
+    public void setUltimaUbicacionEn(LocalDateTime ultimaUbicacionEn) { this.ultimaUbicacionEn = ultimaUbicacionEn; }
+
+    public LocalDateTime getUltimaConexion() { return ultimaConexion; }
+    public void setUltimaConexion(LocalDateTime ultimaConexion) { this.ultimaConexion = ultimaConexion; }
 
     public Conductor() {}
 

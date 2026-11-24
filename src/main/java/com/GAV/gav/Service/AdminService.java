@@ -525,6 +525,46 @@ public class AdminService {
                 .build();
     }
 
+    // ====================================================================
+    // FLOTA EN VIVO — mapa de conductores conectados
+    // ====================================================================
+
+    // Conductores habilitados con la app abierta (señal en los últimos
+    // SEGUNDOS_CONEXION_FLOTA s) y su última posición. Los que cerraron sesión
+    // o fueron deshabilitados no aparecen.
+    private static final int SEGUNDOS_CONEXION_FLOTA = 30;
+
+    @Transactional(readOnly = true)
+    public List<FlotaUbicacionResponse> flotaEnVivo() {
+        LocalDateTime desde = LocalDateTime.now().minusSeconds(SEGUNDOS_CONEXION_FLOTA);
+        List<FlotaUbicacionResponse> resultado = new ArrayList<>();
+        for (Conductor c : conductorRepository.findConectadosConUbicacion(desde)) {
+            Automovil a = c.getAutomovil();
+            FlotaUbicacionResponse.FlotaUbicacionResponseBuilder b = FlotaUbicacionResponse.builder()
+                    .conductorId(c.getUsuarioId())
+                    .nombre(c.getUsuario() != null ? c.getUsuario().getNombreCompleto() : "Conductor")
+                    .vehiculo(a != null ? (a.getMarca() + " " + a.getModelo()).trim() : null)
+                    .placa(a != null ? a.getPlaca() : null)
+                    .lat(c.getUltimaLat())
+                    .lng(c.getUltimaLng())
+                    .ultimaSenal(c.getUltimaUbicacionEn())
+                    .estado("DISPONIBLE");
+
+            viajeRepository.findViajeActivoDelConductor(c.getUsuarioId()).stream().findFirst()
+                    .ifPresent(v -> b.estado("EN_VIAJE")
+                            .viajeId(v.getId())
+                            .viajeEstado(v.getEstadoViaje())
+                            .origenNombre(v.getOrigenNombre())
+                            .destinoNombre(v.getDestinoNombre())
+                            .origenLat(v.getOrigenLat())
+                            .origenLng(v.getOrigenLng())
+                            .destinoLat(v.getDestinoLat())
+                            .destinoLng(v.getDestinoLng()));
+            resultado.add(b.build());
+        }
+        return resultado;
+    }
+
     // Mapea Viaje a ViajeResponse para los endpoints admin.
     private ViajeResponse mapToViajeResponse(Viaje v) {
         ViajeResponse.ViajeResponseBuilder builder = ViajeResponse.builder()

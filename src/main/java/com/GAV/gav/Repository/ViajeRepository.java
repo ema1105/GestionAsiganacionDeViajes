@@ -141,4 +141,22 @@ public interface ViajeRepository extends JpaRepository<Viaje, Long> {
         ORDER BY COUNT(v) DESC
     """)
     List<Object[]> lugaresMasSolicitados(Pageable pageable);
+
+    // Viajes que esperan conductor y NO tienen ninguna oferta PENDIENTE en curso
+    // (p. ej. se solicitaron cuando no había conductores conectados).
+    // El scheduler los reintenta para asignarlos apenas alguien se conecte.
+    // Solo viajes recientes (desde :desde): los viejos que quedaron colgados en
+    // BUSCANDO_CONDUCTOR (datos de prueba, sesiones abandonadas) no se reintentan.
+    @Query("""
+        SELECT v FROM Viaje v
+        WHERE v.estadoViaje IN (com.GAV.gav.Model.Viaje.EstadoViaje.SOLICITADO,
+                                com.GAV.gav.Model.Viaje.EstadoViaje.BUSCANDO_CONDUCTOR)
+        AND v.fechaSolicitud >= :desde
+        AND NOT EXISTS (
+            SELECT vc FROM ViajeConductor vc
+            WHERE vc.viaje = v
+            AND vc.estado = com.GAV.gav.Model.ViajeConductor.EstadoSolicitud.PENDIENTE
+        )
+    """)
+    List<Viaje> findEsperandoSinOferta(@Param("desde") LocalDateTime desde);
 }

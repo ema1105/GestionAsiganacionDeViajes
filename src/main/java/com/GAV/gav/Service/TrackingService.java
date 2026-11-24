@@ -42,11 +42,20 @@ public class TrackingService {
                 .orElseThrow(() -> new BusinessException(
                         "Conductor no encontrado: " + conductorId, HttpStatus.NOT_FOUND));
 
+        // Latido de conexión + última posición en el propio conductor (mapa "Flota en vivo").
+        // Se asigna en la entidad (no con UPDATE masivo) para que el guardado de la
+        // entidad no pise la hora de conexión con un valor viejo.
+        LocalDateTime ahora = LocalDateTime.now();
+        conductor.setUltimaConexion(ahora);
+        conductor.setUltimaLat(req.getLat());
+        conductor.setUltimaLng(req.getLng());
+        conductor.setUltimaUbicacionEn(ahora);
+
         UbicacionConductor u = new UbicacionConductor();
         u.setConductor(conductor);
         u.setLat(req.getLat());
         u.setLng(req.getLng());
-        u.setFecha(LocalDateTime.now());
+        u.setFecha(ahora);
         UbicacionConductor guardada = ubicacionRepository.save(u);
 
         return UbicacionResponse.builder()

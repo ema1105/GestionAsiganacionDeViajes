@@ -37,6 +37,16 @@ public interface ViajeConductorRepository extends JpaRepository<ViajeConductor, 
     """)
     List<ViajeConductor> findSolicitudesExpiradas(@Param("ahora") LocalDateTime ahora);
 
+    // Solicitudes PENDIENTE cuyo conductor se desconectó (cerró la app): se expiran
+    // de inmediato en vez de esperar los 30 s completos.
+    @Query("""
+        SELECT vc FROM ViajeConductor vc
+        WHERE vc.estado = com.GAV.gav.Model.ViajeConductor.EstadoSolicitud.PENDIENTE
+        AND (vc.conductor.ultimaConexion IS NULL OR vc.conductor.ultimaConexion < :conectadoDesde)
+    """)
+    List<ViajeConductor> findPendientesDeConductoresDesconectados(
+            @Param("conectadoDesde") LocalDateTime conectadoDesde);
+
     // Historial paginado de solicitudes recibidas por un conductor, con filtro opcional por estado.
     @Query("""
         SELECT vc FROM ViajeConductor vc

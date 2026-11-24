@@ -219,6 +219,13 @@ public class AdminController {
     //=====================================================================
     //DASHBOARD POWER BI — devuelve la URL del reporte para que el frontend la embeba
     //=====================================================================
+    // Mapa "Flota en vivo": conductores conectados con su última posición.
+    // La app del admin lo consulta cada ~10 s.
+    @GetMapping("/flota/ubicaciones")
+    public ResponseEntity<List<FlotaUbicacionResponse>> flotaEnVivo() {
+        return ResponseEntity.ok(adminService.flotaEnVivo());
+    }
+
     @GetMapping("/dashboard/url")
     public ResponseEntity<java.util.Map<String, String>> obtenerUrlDashboard() {
         String powerBiUrl = "https://app.powerbi.com/view?r=eyJrIjoiZTk4NmIxZjAtNzQ4Ni00MTljLThiYTAtOTJkMGMwMTdiZjNhIiwidCI6IjlkMTJiZjNmLWU0ZjYtNDdhYi05MTJmLTFhMmYwZmM0OGFhNCIsImMiOjR9";

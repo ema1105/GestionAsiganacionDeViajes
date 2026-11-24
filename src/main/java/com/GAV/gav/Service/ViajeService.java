@@ -14,7 +14,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 // Gestiona el ciclo de vida de los viajes y contiene la lógica central del algoritmo FIFO.
 //
@@ -33,6 +35,18 @@ public class ViajeService {
 
     // Tiempo máximo (segundos) para que un conductor responda una solicitud antes de expirar
     private static final int SEGUNDOS_EXPIRACION = 30;
+
+    // Un conductor se considera CONECTADO si su app dio señal en los últimos N segundos.
+    // La app consulta /solicitudes/pendiente cada ~6 s, así que 30 s tolera 4 fallos seguidos.
+    static final int SEGUNDOS_CONEXION = 30;
+
+    // Ventana para reintentar viajes que esperan conductor sin oferta. Más viejos que esto
+    // se consideran abandonados (el cliente puede cancelarlos o volver a pedir).
+    private static final int MINUTOS_REINTENTO = 30;
+
+    private static LocalDateTime conectadoDesde() {
+        return LocalDateTime.now().minusSeconds(SEGUNDOS_CONEXION);
+    }
 
     private final ViajeRepository viajeRepository;
     private final UsuarioRepository usuarioRepository;
@@ -140,11 +154,11 @@ public class ViajeService {
         viajeRepository.save(viaje);
 
         List<Conductor> candidatos = conductorRepository
-                .findPrimerConductorFIFO(viaje.getCantidadPasajeros());
+                .findPrimerConductorFIFO(conectadoDesde(), viaje.getCantidadPasajeros());
 
         if (candidatos.isEmpty()) {
-            // No hay conductores disponibles; el viaje queda en BUSCANDO_CONDUCTOR.
-            // El scheduler o una llamada futura a asignarSiguienteConductorFIFO lo retomará.
+            // No hay conductores conectados; el viaje queda en BUSCANDO_CONDUCTOR.
+            // El scheduler lo retoma apenas un conductor se conecte.
             return;
         }
 
@@ -167,7 +181,7 @@ public class ViajeService {
         );
 
         List<Conductor> candidatos = conductorRepository
-                .findSiguienteConductorFIFO(viaje.getCantidadPasajeros(), viaje.getId(), excluidos);
+                .findSiguienteConductorFIFO(conectadoDesde(), viaje.getCantidadPasajeros(), viaje.getId(), excluidos);
 
         if (!candidatos.isEmpty()) {
             crearSolicitudPendiente(viaje, candidatos.get(0));
@@ -188,7 +202,7 @@ public class ViajeService {
 
         // ¿Hay conductores disponibles a nivel global (ignorando exclusiones)?
         List<Conductor> candidatosGlobal = conductorRepository
-                .findPrimerConductorFIFO(viaje.getCantidadPasajeros());
+                .findPrimerConductorFIFO(conectadoDesde(), viaje.getCantidadPasajeros());
         if (candidatosGlobal.isEmpty()) {
             // No existe ningún conductor con la capacidad requerida; esperar.
             return;
@@ -235,15 +249,21 @@ public class ViajeService {
         );
     }
 
-    // Scheduler que corre cada 10 segundos para detectar solicitudes que expiraron sin respuesta.
-    // Marca como EXPIRADO y avanza al siguiente conductor en la cola FIFO automáticamente.
-    @Scheduled(fixedDelay = 10_000)
+    // Scheduler que corre cada 5 segundos:
+    //  1. Expira solicitudes vencidas (30 s sin respuesta) y las de conductores que se
+    //     desconectaron, y avanza al siguiente conductor CONECTADO de la cola FIFO.
+    //  2. Reintenta los viajes que esperan conductor sin ninguna oferta en curso
+    //     (se pidieron cuando no había nadie conectado).
+    @Scheduled(fixedDelay = 5_000)
     @Transactional
     public void verificarSolicitudesExpiradas() {
-        List<ViajeConductor> expiradas = viajeConductorRepository
-                .findSolicitudesExpiradas(LocalDateTime.now());
+        Map<Long, ViajeConductor> porExpirar = new LinkedHashMap<>();
+        viajeConductorRepository.findSolicitudesExpiradas(LocalDateTime.now())
+                .forEach(s -> porExpirar.put(s.getId(), s));
+        viajeConductorRepository.findPendientesDeConductoresDesconectados(conectadoDesde())
+                .forEach(s -> porExpirar.putIfAbsent(s.getId(), s));
 
-        for (ViajeConductor solicitud : expiradas) {
+        for (ViajeConductor solicitud : porExpirar.values()) {
             solicitud.setEstado(ViajeConductor.EstadoSolicitud.EXPIRADO);
             solicitud.setFechaRespuesta(LocalDateTime.now());
             viajeConductorRepository.save(solicitud);
@@ -252,6 +272,14 @@ public class ViajeService {
             // Solo avanzar si el viaje aún está buscando conductor
             if (viaje.getEstadoViaje() == Viaje.EstadoViaje.BUSCANDO_CONDUCTOR
                     || viaje.getEstadoViaje() == Viaje.EstadoViaje.SOLICITADO) {
+                asignarSiguienteConductorFIFO(viaje);
+            }
+        }
+
+        // Reintento de viajes sin oferta: solo si hay alguien conectado a quien ofrecerlos.
+        if (conductorRepository.existeConductorConectado(conectadoDesde())) {
+            LocalDateTime desde = LocalDateTime.now().minusMinutes(MINUTOS_REINTENTO);
+            for (Viaje viaje : viajeRepository.findEsperandoSinOferta(desde)) {
                 asignarSiguienteConductorFIFO(viaje);
             }
         }

@@ -225,7 +225,11 @@ public class ConductorService {
         return viajeService.mapToViajeResponse(viaje);
     }
 
+    // La app del conductor consulta esto cada ~6 s mientras está abierta: sirve también
+    // de "latido" para que el FIFO sepa que el conductor está conectado.
+    @Transactional
     public ViajeConductor obtenerSolicitudPendiente(Long conductorId) {
+        conductorRepository.marcarConectado(conductorId, LocalDateTime.now());
         return viajeConductorRepository
                 .findByConductorUsuarioId(conductorId)
                 .stream()
