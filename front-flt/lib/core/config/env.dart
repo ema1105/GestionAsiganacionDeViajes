@@ -48,4 +48,10 @@ abstract final class Env {
 
   /// Intervalo de polling mientras no exista WebSocket/STOMP en el backend.
   static const Duration pollingInterval = Duration(seconds: 6);
+
+  /// Presentación: `DEMO_MODE=true` responde la predicción desde assets/demo/ sin red.
+  static const bool demoMode = bool.fromEnvironment('DEMO_MODE');
+
+  /// Si la nube no responde, la predicción usa el respaldo de assets/demo/.
+  static const bool fallbackDemo = bool.fromEnvironment('FALLBACK_DEMO', defaultValue: true);
 }

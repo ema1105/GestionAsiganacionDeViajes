@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../config/env.dart';
+import 'prediccion_demo_interceptor.dart';
 
 /// Cliente HTTP del servicio de predicción (FastAPI).
 ///
@@ -22,6 +23,9 @@ final prediccionDioProvider = Provider<Dio>((ref) {
       },
     ),
   );
+
+  // Respaldo demo para la presentación (ver prediccion_demo_interceptor.dart)
+  dio.interceptors.add(PrediccionDemoInterceptor());
 
   if (kDebugMode) {
     dio.interceptors.add(

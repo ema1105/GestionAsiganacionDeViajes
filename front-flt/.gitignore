@@ -13,6 +13,7 @@ build/
 
 # Entornos con datos reales (dev.json sí se versiona: solo apunta a localhost)
 env/prod.json
+env/demo.json
 env/*.local.json
 
 # Android / iOS

@@ -1,0 +1,47 @@
+name: gav_app
+description: App móvil de GAV (Gestión Asignación de Viajes) — Cliente y Conductor.
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.8.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # Red
+  dio: ^5.8.0
+  # Estado
+  flutter_riverpod: ^3.0.0
+  # Navegación
+  go_router: ^16.0.0
+  # Sesión
+  flutter_secure_storage: ^9.2.2
+  jwt_decoder: ^2.0.1
+  # Utilidades
+  intl: ^0.20.2
+  # UI / tema
+  google_fonts: ^6.2.1
+  shared_preferences: ^2.3.0
+  # Mapa y GPS
+  google_maps_flutter: ^2.12.0
+  geolocator: ^14.0.0
+  # Dashboard BI (Power BI)
+  url_launcher: ^6.3.0
+  webview_flutter: ^4.10.0
+  web: ^1.1.0
+  material_ui: ^1.11.1
+  cupertino_ui: ^1.1.7
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  mocktail: ^1.0.4
+  http_mock_adapter: ^0.6.1
+
+flutter:
+  uses-material-design: true
