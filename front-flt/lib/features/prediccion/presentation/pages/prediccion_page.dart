@@ -225,7 +225,7 @@ class _CardGrafico extends StatelessWidget {
           const SizedBox(height: 8),
           LienzoGrafica(
             height: 167,
-            painter: BarrasComparacionPainter(
+            child: GraficaBarrasComparacion(
               real: b.reales,
               prediccion: o.predichas,
               minimo: o.intervalo.min,

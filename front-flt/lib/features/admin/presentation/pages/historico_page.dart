@@ -155,7 +155,7 @@ class _Anio extends StatelessWidget {
               if (velas.isEmpty)
                 const EmptyView(mensaje: 'El modelo aún no predice meses de este año')
               else
-                LienzoGrafica(height: 150, painter: VelasPainter(velas)),
+                LienzoGrafica(height: 150, child: GraficaVelas(velas)),
             ],
           ),
         ),

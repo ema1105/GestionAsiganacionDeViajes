@@ -24,3 +24,7 @@ android/key.properties
 ios/Pods/
 ios/.symlinks/
 ios/Flutter/Generated.xcconfig
+
+# Respaldos locales de cambios
+_respaldo*/
+_respaldo*.tgz

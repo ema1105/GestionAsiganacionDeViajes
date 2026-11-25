@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:fl_chart/fl_chart.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// Colores de las gráficas sobre fondo blanco (mockups 04 y 06).
@@ -12,13 +13,14 @@ abstract final class ColoresGrafica {
   static const tintaSuave = Color(0xFF5B6B70);
   static const sube = Color(0xFF34C46A);
   static const baja = Color(0xFFE5534B);
+  static const etiquetaMes = Color(0xFF8A867F);
 }
 
 /// Contenedor blanco redondeado donde se dibujan las gráficas.
 class LienzoGrafica extends StatelessWidget {
-  const LienzoGrafica({super.key, required this.height, required this.painter});
+  const LienzoGrafica({super.key, required this.height, required this.child});
   final double height;
-  final CustomPainter painter;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -29,31 +31,28 @@ class LienzoGrafica extends StatelessWidget {
           color: ColoresGrafica.fondo,
           borderRadius: BorderRadius.circular(10),
         ),
-        child: CustomPaint(size: Size.infinite, painter: painter),
+        child: child,
       );
 }
 
-void _texto(
-  Canvas canvas,
-  String texto,
-  Offset centroArriba, {
-  double size = 11,
-  Color color = ColoresGrafica.tinta,
-  bool bold = false,
-}) {
-  final tp = TextPainter(
-    text: TextSpan(
-      text: texto,
-      style: TextStyle(fontSize: size, color: color, fontWeight: bold ? FontWeight.w700 : FontWeight.w400),
-    ),
-    textDirection: TextDirection.ltr,
-  )..layout();
-  tp.paint(canvas, Offset(centroArriba.dx - tp.width / 2, centroArriba.dy));
-}
+TextStyle _estilo({double size = 11, Color color = ColoresGrafica.tinta, bool bold = false}) =>
+    TextStyle(fontSize: size, color: color, fontWeight: bold ? FontWeight.w700 : FontWeight.w400);
 
-/// Mockup 04: barra real del año base contra barra predicha con su rango probable.
-class BarrasComparacionPainter extends CustomPainter {
-  BarrasComparacionPainter({
+const _sinTitulos = AxisTitles(sideTitles: SideTitles(showTitles: false));
+const _estiloTooltip = TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500);
+const _animacion = Duration(milliseconds: 400);
+
+/// Solo la línea base (eje X), sin marco ni cuadrícula.
+FlBorderData _soloEjeX() => FlBorderData(
+      show: true,
+      border: const Border(bottom: BorderSide(color: ColoresGrafica.eje)),
+    );
+
+/// Mockup 04 (fl_chart · BarChart): barra real del año base contra barra predicha
+/// con su rango probable dibujado como barra de error.
+class GraficaBarrasComparacion extends StatelessWidget {
+  const GraficaBarrasComparacion({
+    super.key,
     required this.real,
     required this.prediccion,
     required this.minimo,
@@ -62,6 +61,7 @@ class BarrasComparacionPainter extends CustomPainter {
     required this.etiquetaPrediccion,
   });
 
+  /// null si el año base no tiene dato real.
   final int? real;
   final int prediccion;
   final int minimo;
@@ -69,62 +69,125 @@ class BarrasComparacionPainter extends CustomPainter {
   final String etiquetaReal;
   final String etiquetaPrediccion;
 
-  @override
-  void paint(Canvas canvas, Size size) {
-    const zonaEtiquetas = 22.0;
-    const zonaValor = 22.0;
-    final base = size.height - zonaEtiquetas;
-    final tope = math.max(1, [real ?? 0, prediccion, maximo].reduce(math.max)).toDouble();
-    double y(num v) => base - (v / tope) * (base - zonaValor);
+  static const _zonaEtiquetas = 22.0;
+  static const _zonaValor = 22.0;
 
-    canvas.drawLine(
-      Offset(0, base),
-      Offset(size.width, base),
-      Paint()
-        ..color = ColoresGrafica.eje
-        ..strokeWidth = 1,
-    );
-
-    final ancho = size.width * 0.234;
-    final cxReal = size.width * 0.292;
-    final cxPred = size.width * 0.708;
-
-    void barra(double cx, num valor, Color color) => canvas.drawRRect(
-          RRect.fromRectAndRadius(
-            Rect.fromLTRB(cx - ancho / 2, y(valor), cx + ancho / 2, base),
-            const Radius.circular(4),
-          ),
-          Paint()..color = color,
-        );
-
-    // Año base (real).
-    if (real != null) {
-      barra(cxReal, real!, ColoresGrafica.barraReal);
-      _texto(canvas, '$real', Offset(cxReal, y(real!) - 19), size: 14, bold: true);
-    } else {
-      _texto(canvas, 'Sin dato', Offset(cxReal, base - 18), size: 11, color: ColoresGrafica.tintaSuave);
-    }
-
-    // Predicción + rango probable (barra de error).
-    barra(cxPred, prediccion, ColoresGrafica.barraPrediccion);
-    final rango = Paint()
-      ..color = ColoresGrafica.tinta
-      ..strokeWidth = 1.4;
-    const brazo = 5.5;
-    canvas
-      ..drawLine(Offset(cxPred, y(maximo)), Offset(cxPred, y(minimo)), rango)
-      ..drawLine(Offset(cxPred - brazo, y(maximo)), Offset(cxPred + brazo, y(maximo)), rango)
-      ..drawLine(Offset(cxPred - brazo, y(minimo)), Offset(cxPred + brazo, y(minimo)), rango);
-    _texto(canvas, '$prediccion', Offset(cxPred, y(maximo) - 19), size: 14, bold: true);
-
-    _texto(canvas, etiquetaReal, Offset(cxReal, base + 5), color: ColoresGrafica.tintaSuave);
-    _texto(canvas, etiquetaPrediccion, Offset(cxPred, base + 5), bold: true);
-  }
+  static final _pintorRango = FlSimpleErrorPainter(
+    lineColor: ColoresGrafica.tinta,
+    lineWidth: 1.4,
+    capLength: 11,
+  );
 
   @override
-  bool shouldRepaint(covariant BarrasComparacionPainter o) =>
-      o.real != real || o.prediccion != prediccion || o.minimo != minimo || o.maximo != maximo ||
-      o.etiquetaReal != etiquetaReal || o.etiquetaPrediccion != etiquetaPrediccion;
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, c) {
+          final alto = c.maxHeight - _zonaEtiquetas;
+          final tope = math.max(1, [real ?? 0, prediccion, maximo].reduce(math.max)).toDouble();
+          // Igual que el diseño original: el valor más alto queda a _zonaValor del borde superior.
+          final maxY = tope * alto / math.max(1.0, alto - _zonaValor);
+          final pxPorUnidad = alto / maxY;
+          final ancho = c.maxWidth * 0.234;
+          final estiloValor = _estilo(size: 14, bold: true);
+
+          BarChartRodData barra(num valor, Color color, BarChartRodLabel etiqueta, {FlErrorRange? rango}) =>
+              BarChartRodData(
+                toY: valor.toDouble(),
+                toYErrorRange: rango,
+                color: color,
+                width: ancho,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                label: etiqueta,
+              );
+
+          final barraReal = real == null
+              ? barra(
+                  0,
+                  Colors.transparent,
+                  BarChartRodLabel(
+                    show: true,
+                    text: 'Sin dato',
+                    style: _estilo(color: ColoresGrafica.tintaSuave),
+                    offset: const Offset(0, 6),
+                  ),
+                )
+              : barra(
+                  real!,
+                  ColoresGrafica.barraReal,
+                  BarChartRodLabel(show: true, text: '$real', style: estiloValor, offset: const Offset(0, 2)),
+                );
+
+          // El valor predicho se escribe encima del rango probable, no encima de la barra.
+          final sobreRango = math.max(0, maximo - prediccion) * pxPorUnidad;
+          final barraPrediccion = barra(
+            prediccion,
+            ColoresGrafica.barraPrediccion,
+            BarChartRodLabel(
+              show: true,
+              text: '$prediccion',
+              style: estiloValor,
+              offset: Offset(0, 2 + sobreRango),
+            ),
+            rango: FlErrorRange(
+              lowerBy: math.max(0, prediccion - minimo).toDouble(),
+              upperBy: math.max(0, maximo - prediccion).toDouble(),
+            ),
+          );
+
+          return BarChart(
+            duration: _animacion,
+            BarChartData(
+              minY: 0,
+              maxY: maxY,
+              alignment: BarChartAlignment.spaceAround,
+              barGroups: [
+                BarChartGroupData(x: 0, barRods: [barraReal]),
+                BarChartGroupData(x: 1, barRods: [barraPrediccion]),
+              ],
+              errorIndicatorData: FlErrorIndicatorData<BarChartSpotErrorRangeCallbackInput>(
+                painter: (_) => _pintorRango,
+              ),
+              gridData: const FlGridData(show: false),
+              borderData: _soloEjeX(),
+              titlesData: FlTitlesData(
+                leftTitles: _sinTitulos,
+                rightTitles: _sinTitulos,
+                topTitles: _sinTitulos,
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: _zonaEtiquetas,
+                    getTitlesWidget: (value, meta) {
+                      final esReal = value.round() == 0;
+                      return SideTitleWidget(
+                        meta: meta,
+                        space: 5,
+                        child: Text(
+                          esReal ? etiquetaReal : etiquetaPrediccion,
+                          style: esReal ? _estilo(color: ColoresGrafica.tintaSuave) : _estilo(bold: true),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              barTouchData: BarTouchData(
+                touchTooltipData: BarTouchTooltipData(
+                  getTooltipColor: (_) => ColoresGrafica.tinta,
+                  getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                    if (group.x == 0) {
+                      return real == null ? null : BarTooltipItem('Real: $real', _estiloTooltip);
+                    }
+                    return BarTooltipItem(
+                      'Predicción: $prediccion\nRango probable: $minimo–$maximo',
+                      _estiloTooltip,
+                    );
+                  },
+                ),
+              ),
+            ),
+          );
+        },
+      );
 }
 
 /// Vela de un mes (mockup 06): apertura = real del año base, cierre = predicción,
@@ -157,15 +220,19 @@ class VelaMes {
   int get hashCode => Object.hash(etiqueta, apertura, cierre, minimo, maximo);
 }
 
-class VelasPainter extends CustomPainter {
-  VelasPainter(this.velas);
+/// Mockup 06 (fl_chart · CandlestickChart): una vela por mes del año.
+class GraficaVelas extends StatelessWidget {
+  const GraficaVelas(this.velas, {super.key});
   final List<VelaMes> velas;
 
+  static const _zonaEtiquetas = 16.0;
+
+  /// Grosor del borde del cuerpo: deja visible una rayita cuando apertura == cierre.
+  static const _bordeCuerpo = 3.0;
+
   @override
-  void paint(Canvas canvas, Size size) {
-    if (velas.isEmpty) return;
-    const zonaEtiquetas = 16.0;
-    final alto = size.height - zonaEtiquetas;
+  Widget build(BuildContext context) {
+    if (velas.isEmpty) return const SizedBox.shrink();
 
     // Escala ajustada al rango de los datos para que las diferencias se vean.
     final valores = [
@@ -176,55 +243,89 @@ class VelasPainter extends CustomPainter {
     final margen = math.max(1.0, (maxV - minV) * 0.1);
     final piso = math.max(0.0, minV - margen);
     final techo = maxV + margen;
-    double y(num v) => alto - ((v - piso) / (techo - piso)) * (alto - 6);
 
-    canvas.drawLine(
-      Offset(0, alto),
-      Offset(size.width, alto),
-      Paint()
-        ..color = ColoresGrafica.eje
-        ..strokeWidth = 1,
+    return LayoutBuilder(
+      builder: (context, c) {
+        final paso = c.maxWidth / velas.length;
+        final ancho = math.min(14.0, paso * 0.45);
+
+        final pintor = DefaultCandlestickPainter(
+          candlestickStyleProvider: (spot, i) {
+            final color = velas[i].sube ? ColoresGrafica.sube : ColoresGrafica.baja;
+            return CandlestickStyle(
+              lineColor: color,
+              lineWidth: 1.2,
+              bodyStrokeColor: color,
+              bodyStrokeWidth: _bordeCuerpo,
+              bodyFillColor: color,
+              bodyWidth: math.max(1.0, ancho - _bordeCuerpo),
+              bodyRadius: 2,
+            );
+          },
+        );
+
+        return CandlestickChart(
+          duration: _animacion,
+          CandlestickChartData(
+            candlestickSpots: [
+              for (var i = 0; i < velas.length; i++)
+                CandlestickSpot(
+                  x: i.toDouble(),
+                  open: (velas[i].apertura ?? velas[i].cierre).toDouble(),
+                  high: velas[i].maximo.toDouble(),
+                  low: velas[i].minimo.toDouble(),
+                  close: velas[i].cierre.toDouble(),
+                ),
+            ],
+            candlestickPainter: pintor,
+            minX: -0.5,
+            maxX: velas.length - 0.5,
+            minY: piso,
+            maxY: techo,
+            gridData: const FlGridData(show: false),
+            borderData: _soloEjeX(),
+            titlesData: FlTitlesData(
+              leftTitles: _sinTitulos,
+              rightTitles: _sinTitulos,
+              topTitles: _sinTitulos,
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: _zonaEtiquetas,
+                  interval: 1,
+                  minIncluded: false,
+                  maxIncluded: false,
+                  getTitlesWidget: (value, meta) {
+                    final i = value.round();
+                    if (value != i || i < 0 || i >= velas.length) return const SizedBox.shrink();
+                    return SideTitleWidget(
+                      meta: meta,
+                      space: 3,
+                      child: Text(velas[i].etiqueta, style: _estilo(size: 9, color: ColoresGrafica.etiquetaMes)),
+                    );
+                  },
+                ),
+              ),
+            ),
+            candlestickTouchData: CandlestickTouchData(
+              touchSpotThreshold: 12,
+              touchTooltipData: CandlestickTouchTooltipData(
+                getTooltipColor: (_) => ColoresGrafica.tinta,
+                getTooltipItems: (painter, spot, i) {
+                  final v = velas[i];
+                  return CandlestickTooltipItem(
+                    '${v.etiqueta}\n'
+                    'Predicción: ${v.cierre}\n'
+                    'Real año base: ${v.apertura ?? 'sin dato'}\n'
+                    'Rango: ${v.minimo}–${v.maximo}',
+                    textStyle: _estiloTooltip,
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
     );
-
-    final paso = size.width / velas.length;
-    final ancho = math.min(14.0, paso * 0.45);
-
-    for (var i = 0; i < velas.length; i++) {
-      final v = velas[i];
-      final cx = paso * i + paso / 2;
-      final color = v.sube ? ColoresGrafica.sube : ColoresGrafica.baja;
-
-      canvas.drawLine(
-        Offset(cx, y(v.maximo)),
-        Offset(cx, y(v.minimo)),
-        Paint()
-          ..color = color
-          ..strokeWidth = 1.2,
-      );
-
-      final apertura = v.apertura ?? v.cierre;
-      final top = y(math.max(apertura, v.cierre));
-      final bottom = y(math.min(apertura, v.cierre));
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTRB(cx - ancho / 2, top, cx + ancho / 2, math.max(bottom, top + 3)),
-          const Radius.circular(2),
-        ),
-        Paint()..color = color,
-      );
-
-      _texto(canvas, v.etiqueta, Offset(cx, alto + 3), size: 9, color: const Color(0xFF8A867F));
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant VelasPainter o) => !_mismas(o.velas, velas);
-
-  static bool _mismas(List<VelaMes> a, List<VelaMes> b) {
-    if (a.length != b.length) return false;
-    for (var i = 0; i < a.length; i++) {
-      if (a[i] != b[i]) return false;
-    }
-    return true;
   }
 }
