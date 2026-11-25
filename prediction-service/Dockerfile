@@ -23,7 +23,8 @@ COPY . .
 
 EXPOSE 8000
 
-# Si no hay modelo (volumen vacío y sin artefactos en la imagen), entrena primero.
-# Si el entrenamiento falla, el servicio arranca igual y /api/prediccion/salud
-# responde "sin_modelo" (más fácil de diagnosticar que un contenedor caído).
-CMD ["sh", "-c", "[ -f artefactos/metadata.json ] || python entrenar.py; exec uvicorn app:app --host 0.0.0.0 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips='*'"]
+# GAV_ARTEFACTOS_DIR (compose: /app/modelo/artefactos, en un volumen). En el primer
+# arranque el volumen está vacío: se copia el modelo que viene en la imagen. Si no hay
+# ninguno, se entrena. Si el entrenamiento falla, el servicio arranca igual y
+# /api/prediccion/salud responde "sin_modelo".
+CMD ["sh", "-c", "D=${GAV_ARTEFACTOS_DIR:-/app/artefactos}; if [ ! -f \"$D/metadata.json\" ] && [ \"$D\" != /app/artefactos ] && [ -f /app/artefactos/metadata.json ]; then mkdir -p \"$D\" && cp -r /app/artefactos/. \"$D\"/; fi; [ -f \"$D/metadata.json\" ] || python entrenar.py; exec uvicorn app:app --host 0.0.0.0 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips='*'"]

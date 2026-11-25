@@ -43,10 +43,11 @@ services:
       # Solo se usa al reentrenar (lee la tabla viaje). TLS con los certificados del sistema.
       GAV_DB_URL: "mysql+pymysql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:3306/${DB_NAME}?ssl_ca=/etc/ssl/certs/ca-certificates.crt"
       GAV_API_KEY: ${PREDICCION_API_KEY:-}
+      # Modelo y su respaldo viven DENTRO del volumen (app.py los borra y recrea con rmtree)
+      GAV_ARTEFACTOS_DIR: /app/modelo/artefactos
       TZ: America/Bogota
     volumes:
-      - pred_artefactos:/app/artefactos              # el modelo sobrevive a rebuilds y reentrenamientos
-      - pred_respaldo:/app/artefactos_respaldo
+      - pred_modelo:/app/modelo                      # artefactos/ + artefactos_respaldo/: sobreviven a rebuilds
     expose:
       - "8000"
     mem_limit: ${PREDICTION_MEM_LIMIT:-1800m}
@@ -84,5 +85,4 @@ services:
 volumes:
   caddy_data:
   caddy_config:
-  pred_artefactos:
-  pred_respaldo:
+  pred_modelo:
