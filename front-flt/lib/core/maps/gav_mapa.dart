@@ -18,7 +18,7 @@ String _claveRuta(LatLng a, LatLng b, {int decimales = 5}) =>
     '>${b.latitude.toStringAsFixed(decimales)},${b.longitude.toStringAsFixed(decimales)}';
 
 /// Ruta por calles a → b con caché. [decimales] redondea la clave (3 ≈ 100 m) para
-/// no recalcular por pequeños movimientos del GPS. null si no hay Directions (móvil).
+/// no recalcular por pequeños movimientos del GPS. null si ninguna API de rutas responde.
 Future<RutaCalculada?> rutaPorCallesCacheada(LatLng a, LatLng b, {int decimales = 5}) async {
   final k = _claveRuta(a, b, decimales: decimales);
   final cache = _cacheRutas[k];
